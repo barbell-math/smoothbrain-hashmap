@@ -161,8 +161,11 @@ func (m *Map[K, V]) Get(k K) (V, bool) {
 	hash := m.clampedHash(m.hash(k))
 	doubleHash := m.doubleHash(hash)
 	for i := uint64(1); m.data[hash].used(); i++ {
-		if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
-			return m.data[hash].value, true
+		iterHash := m.data[hash]
+		if !iterHash.deleted() && m.eq(iterHash.key, k) {
+			// if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
+			return iterHash.value, true
+			// return m.data[hash].value, true
 		}
 
 		hash = m.clampedHash(hash + i*doubleHash)
@@ -187,21 +190,23 @@ func (m *Map[K, V]) Put(k K, v V) {
 	hash := m.clampedHash(m.hash(k))
 	doubleHash := m.doubleHash(hash)
 	for i := uint64(1); m.data[hash].used(); i++ {
-		if m.eq(m.data[hash].key, k) {
-			m.data[hash].value = v
-
-			if m.data[hash].deleted() {
+		iterEntry := &m.data[hash]
+		if m.eq(iterEntry.key, k) {
+			iterEntry.value = v
+			if iterEntry.deleted() {
 				m.del--
-				m.data[hash].flags &= ^deleted
+				iterEntry.flags &= ^deleted
 			}
 			return
 		}
 		hash = m.clampedHash(hash + i*doubleHash)
 	}
 
-	m.data[hash].key = k
-	m.data[hash].value = v
-	m.data[hash].flags |= used
+	m.data[hash] = entry[K, V]{
+		key:   k,
+		value: v,
+		flags: used,
+	}
 	m.len++
 }
 
