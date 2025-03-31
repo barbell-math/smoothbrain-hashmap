@@ -205,7 +205,7 @@ Creates a copy of the supplied hash map. All values will be copied using memcpy,
 func (m *Map[K, V]) Get(k K) (V, bool)
 ```
 
-Gets the value that is related to the supplied key. If the key is found the boolean return value will be true and the value will be returned. If the key is not found the boolean return value will be false and a zero\-initilized value of type V will be returned.
+Gets the value that is related to the supplied key. If the key is found the boolean return value will be true and the value will be returned. If the key is not found the boolean return value will be false and a zero\-initialized value of type V will be returned.
 
 <a name="Map[K, V].Keys"></a>
 ### func \(\*Map\[K, V\]\) [Keys](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L287>)

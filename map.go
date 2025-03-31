@@ -149,14 +149,14 @@ func (m *Map[K, V]) doubleHash(hash uint64) uint64 {
 	return 3
 }
 
-// Clamps the hash to always be within the slice lengtm.
+// Clamps the hash to always be within the slice length.
 func (m *Map[K, V]) clampedHash(hash uint64) uint64 {
 	return hash & (uint64(cap(m.data)) - 1)
 }
 
 // Gets the value that is related to the supplied key. If the key is found the
 // boolean return value will be true and the value will be returned. If the key
-// is not found the boolean return value will be false and a zero-initilized
+// is not found the boolean return value will be false and a zero-initialized
 // value of type V will be returned.
 func (m *Map[K, V]) Get(k K) (V, bool) {
 	hash := m.clampedHash(m.hash(k))
