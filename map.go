@@ -3,27 +3,32 @@ package sbmap
 
 import (
 	"hash/maphash"
-	"iter"
 )
 
 type (
-	entry[K any, V any] struct {
+	slot[K any, V any] struct {
 		key   K
 		value V
-		flags int8
+	}
+
+	group[K any, V any] struct {
+		flags    [groupSize]int8
+		slotKeys [groupSize]int8
+		slots    [groupSize]slot[K, V]
 	}
 
 	Map[K any, V any] struct {
-		data []entry[K, V]
-		len  int
-		del  int
-		eq   func(l K, r K) bool
-		hash func(l K) uint64
+		groups []group[K, V]
+		len    int
+		del    int
+		eq     func(l K, r K) bool
+		hash   func(l K) uint64
 	}
 )
 
 const (
-	used = 1 << iota
+	groupSize = 8
+	used      = 1 << iota
 	deleted
 )
 
@@ -45,11 +50,11 @@ var (
 	_sliceGrowthFactor = 1
 )
 
-func (e entry[K, V]) used() bool {
-	return e.flags&used != 0
+func (g group[K, V]) used(idx int) bool {
+	return g.flags[idx]&used != 0
 }
-func (e entry[K, V]) deleted() bool {
-	return e.flags&deleted != 0
+func (g group[K, V]) deleted(idx int) bool {
+	return g.flags[idx]&deleted != 0
 }
 
 // An equality function that can be passed to [NewCustom] when using a
@@ -98,10 +103,10 @@ func ComparableHash[T comparable](v T) uint64 {
 // functions refer to [NewCustom].
 func New[K comparable, V comparable]() Map[K, V] {
 	return Map[K, V]{
-		data: make([]entry[K, V], _defaultInitialCap, _defaultInitialCap),
-		len:  0,
-		eq:   ComparableEqual[K],
-		hash: ComparableHash[K],
+		groups: make([]group[K, V], _defaultInitialCap, _defaultInitialCap),
+		len:    0,
+		eq:     ComparableEqual[K],
+		hash:   ComparableHash[K],
 	}
 }
 
@@ -111,10 +116,10 @@ func New[K comparable, V comparable]() Map[K, V] {
 // and equality functions refer to [NewCustom].
 func NewCap[K comparable, V comparable](_cap int) Map[K, V] {
 	return Map[K, V]{
-		data: make([]entry[K, V], _cap, _cap),
-		len:  0,
-		eq:   ComparableEqual[K],
-		hash: ComparableHash[K],
+		groups: make([]group[K, V], _cap, _cap),
+		len:    0,
+		eq:     ComparableEqual[K],
+		hash:   ComparableHash[K],
 	}
 }
 
@@ -128,10 +133,10 @@ func NewCustom[K any, V any](
 	hash func(v K) uint64,
 ) Map[K, V] {
 	return Map[K, V]{
-		data: make([]entry[K, V], _cap, _cap),
-		len:  0,
-		eq:   eq,
-		hash: hash,
+		groups: make([]group[K, V], _cap, _cap),
+		len:    0,
+		eq:     eq,
+		hash:   hash,
 	}
 }
 
@@ -141,6 +146,12 @@ func (m *Map[K, V]) Len() int {
 	return m.len - m.del
 }
 
+// The group hash is the upper 57 bits of the original hash.
+// The slot hash is the lower 7 bits of the original hash.
+func (m *Map[K, V]) splitHash(hash uint64) (uint64, int8) {
+	return hash >> 7, int8(hash & 0b1111111)
+}
+
 // The double hash function that the hash map will use when a collision occurs
 // to perform probing of the underlying slice.
 func (m *Map[K, V]) doubleHash(hash uint64) uint64 {
@@ -148,9 +159,9 @@ func (m *Map[K, V]) doubleHash(hash uint64) uint64 {
 	return 3
 }
 
-// Clamps the hash to always be within the slice length.
-func (m *Map[K, V]) clampedHash(hash uint64) uint64 {
-	return hash & (uint64(cap(m.data)) - 1)
+// Clamps the hash to always be within the groups slice length.
+func (m *Map[K, V]) clampedGroupHash(hash uint64) uint64 {
+	return hash & (uint64(cap(m.groups)) - 1)
 }
 
 // Gets the value that is related to the supplied key. If the key is found the
@@ -158,69 +169,141 @@ func (m *Map[K, V]) clampedHash(hash uint64) uint64 {
 // is not found the boolean return value will be false and a zero-initialized
 // value of type V will be returned.
 func (m *Map[K, V]) Get(k K) (V, bool) {
-	hash := m.clampedHash(m.hash(k))
-	doubleHash := m.doubleHash(hash)
-	for i := uint64(1); m.data[hash].used(); i++ {
-		iterHash := m.data[hash]
-		if !iterHash.deleted() && m.eq(iterHash.key, k) {
-			// if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
-			return iterHash.value, true
-			// return m.data[hash].value, true
+	groupHash, slotHash := m.splitHash(m.hash(k))
+	groupHash = m.clampedGroupHash(groupHash)
+	// All probing is performed on the group level
+	doubleHash := m.doubleHash(groupHash)
+
+	for i := uint64(1); ; i++ {
+
+		slotProbeRes := getSlotProbe(
+			slotHash,
+			m.groups[groupHash].flags,
+			m.groups[groupHash].slotKeys,
+		)
+		for i := 0; i < groupSize; i++ {
+			if !m.groups[groupHash].used(i) {
+				var tmp V
+				return tmp, false
+			}
+			if slotProbeRes[i] > 0 && m.eq(m.groups[groupHash].slots[i].key, k) {
+				return m.groups[groupHash].slots[i].value, true
+			}
 		}
 
-		hash = m.clampedHash(hash + i*doubleHash)
+		// for i, slotKey := range m.groups[groupHash].slotKeys {
+		// 	if !m.groups[groupHash].used(i) {
+		// 		var tmp V
+		// 		return tmp, false
+		// 	}
+		// 	if slotHash == slotKey && !m.groups[groupHash].deleted(i) {
+		// 		iterSlot := m.groups[groupHash].slots[i]
+		// 		if m.eq(iterSlot.key, k) {
+		// 			return iterSlot.value, true
+		// 		}
+		// 	}
+		// }
+
+		groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
+	}
+}
+
+// func slotProbeGet(used [8]int8, deleted [8]int8)
+
+func getSlotProbe(
+	key int8,
+	flags [groupSize]int8,
+	slotKeys [groupSize]int8,
+) [groupSize]int8 {
+	rv := [groupSize]int8{}
+
+	usedSplat := [groupSize]int8{}
+	for i := 0; i < groupSize; i++ {
+		usedSplat[i] = (flags[i] & used) >> 1
 	}
 
-	var tmp V
-	return tmp, false
+	delSplat := [groupSize]int8{}
+	for i := 0; i < groupSize; i++ {
+		delSplat[i] = flags[i]&deleted ^ 0b1
+	}
+
+	eqSplat := [groupSize]int8{}
+	for i := 0; i < groupSize; i++ {
+		if slotKeys[i] == key {
+			eqSplat[i] = 1
+		}
+	}
+
+	for i := 0; i < groupSize; i++ {
+		rv[i] = usedSplat[i] & delSplat[i] & eqSplat[i]
+	}
+
+	// fmt.Println("Key: ", key)
+	// fmt.Println("Flags: ", flags)
+	// fmt.Println("Slot keys: ", slotKeys)
+	// fmt.Println("Used: ", usedSplat)
+	// fmt.Println("Del: ", delSplat)
+	// fmt.Println(rv)
+	return rv
 }
 
 // Places the supplied key, value pair in the hash map. If the key was already
-// present in the map the old value will be overwritten. The map will resize as
+// present in the map the old value will be overwritten. The map will rehash as
 // necessary.
 func (m *Map[K, V]) Put(k K, v V) {
 	// Original equation:
 	// 	len/cap *100 >= _growFactor
 	// Except dividing ints is bad, we want more precision. So remove the
 	// division and we get this:
-	if m.len*100 >= _growFactor*cap(m.data) {
-		m.resize(cap(m.data) << _sliceGrowthFactor)
+	if m.len*100 >= _growFactor*cap(m.groups)*groupSize {
+		m.rehash(cap(m.groups) << _sliceGrowthFactor)
 	}
 
-	hash := m.clampedHash(m.hash(k))
-	doubleHash := m.doubleHash(hash)
-	for i := uint64(1); m.data[hash].used(); i++ {
-		iterEntry := &m.data[hash]
-		if m.eq(iterEntry.key, k) {
-			iterEntry.value = v
-			if iterEntry.deleted() {
-				m.del--
-				iterEntry.flags &= ^deleted
+	groupHash, slotHash := m.splitHash(m.hash(k))
+	groupHash = m.clampedGroupHash(groupHash)
+	// All probing is performed on the group level
+	doubleHash := m.doubleHash(groupHash)
+
+	for i := uint64(1); ; i++ {
+
+		for i, slotKey := range m.groups[groupHash].slotKeys {
+			if !m.groups[groupHash].used(i) {
+				m.groups[groupHash].slots[i] = slot[K, V]{key: k, value: v}
+				m.groups[groupHash].slotKeys[i] = slotHash
+				m.groups[groupHash].flags[i] |= used
+				m.len++
+				return
 			}
-			return
+			if slotHash == slotKey {
+				iterSlot := &m.groups[groupHash].slots[i]
+				if m.eq(iterSlot.key, k) {
+					iterSlot.value = v
+					if m.groups[groupHash].deleted(i) {
+						m.groups[groupHash].flags[i] &= ^deleted
+						m.del--
+					}
+					return
+				}
+			}
 		}
-		hash = m.clampedHash(hash + i*doubleHash)
-	}
 
-	m.data[hash] = entry[K, V]{
-		key:   k,
-		value: v,
-		flags: used,
+		groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
 	}
-	m.len++
 }
 
-func (m *Map[K, V]) resize(newCap int) {
+func (m *Map[K, V]) rehash(newCap int) {
 	newHMap := Map[K, V]{
-		data: make([]entry[K, V], newCap, newCap),
-		len:  0,
-		eq:   m.eq,
-		hash: m.hash,
+		groups: make([]group[K, V], newCap, newCap),
+		len:    0,
+		eq:     m.eq,
+		hash:   m.hash,
 	}
 
-	for _, entry := range m.data {
-		if entry.used() && !entry.deleted() {
-			newHMap.Put(entry.key, entry.value)
+	for _, group := range m.groups {
+		for i, slot := range group.slots {
+			if group.used(i) && !group.deleted(i) {
+				newHMap.Put(slot.key, slot.value)
+			}
 		}
 	}
 
@@ -230,104 +313,116 @@ func (m *Map[K, V]) resize(newCap int) {
 // Removes the supplied key and associated value from the hash map if it is
 // present. If the key is not present in the map then no action will be taken.
 func (m *Map[K, V]) Remove(k K) {
-	hash := m.clampedHash(m.hash(k))
-	doubleHash := m.doubleHash(hash)
-	for i := uint64(1); m.data[hash].used(); i++ {
-		if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
-			break
+	groupHash, slotHash := m.splitHash(m.hash(k))
+	groupHash = m.clampedGroupHash(groupHash)
+	// All probing is performed on the group level
+	doubleHash := m.doubleHash(groupHash)
+
+	for i := uint64(1); ; i++ {
+
+		for i, slotKey := range m.groups[groupHash].slotKeys {
+			if !m.groups[groupHash].used(i) {
+				goto end
+			}
+			if slotHash == slotKey {
+				iterSlot := &m.groups[groupHash].slots[i]
+				if !m.groups[groupHash].deleted(i) && m.eq(iterSlot.key, k) {
+					m.groups[groupHash].flags[i] |= deleted
+					m.del++
+					goto end
+				}
+			}
 		}
-		hash = m.clampedHash(hash + i*doubleHash)
+
+		groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
 	}
 
-	if !m.data[hash].used() || m.data[hash].deleted() {
-		return
-	}
-
-	m.data[hash].flags |= deleted
-	m.del++
-
+end:
 	// Original equation:
 	// 	len/cap *100 <= _shrinkFactor
 	// Except dividing ints is bad, we want more precision. So remove the
 	// division and we get this:
-	if cap(m.data) > _defaultInitialCap && m.Len()*100 <= _shrinkFactor*cap(m.data) {
-		m.resize(cap(m.data) >> _sliceGrowthFactor)
+	if cap(m.groups) > _defaultInitialCap && m.Len()*100 <= _shrinkFactor*cap(m.groups)*groupSize {
+		m.rehash(cap(m.groups) >> _sliceGrowthFactor)
 	}
 }
 
 // Removes all values from the underlying hash but keeps the maps underlying
 // capacity.
 func (m *Map[K, V]) Clear() {
-	for i, v := range m.data {
-		if v.used() {
-			m.data[i] = entry[K, V]{}
+	for i, group := range m.groups {
+		for j, _ := range group.slots {
+			if group.used(j) && !group.deleted(j) {
+				m.groups[i].slots[j] = slot[K, V]{}
+			}
 		}
 	}
 	m.len = 0
 }
 
-// Removes all values from the underlying hash and resets the maps capacity.
+// Removes all values from the underlying hash and resets the maps capacity to
+// the default initial capacity.
 func (m *Map[K, V]) Zero() {
-	m.data = make([]entry[K, V], _defaultInitialCap, _defaultInitialCap)
+	m.groups = make([]group[K, V], _defaultInitialCap, _defaultInitialCap)
 	m.len = 0
 }
 
-// Creates a copy of the supplied hash map. All values will be copied using
-// memcpy, meaning a shallow copy will be made of the values.
-func (m *Map[K, V]) Copy() *Map[K, V] {
-	newData := make([]entry[K, V], cap(m.data), cap(m.data))
-	for i, v := range m.data {
-		newData[i] = v
-	}
-
-	return &Map[K, V]{
-		len:  m.len,
-		data: newData,
-	}
-}
-
-// Iterates over all of the keys in the map. Uses the stdlib `iter` package so
-// this function can be used in a standard `for` loop.
-func (m *Map[K, V]) Keys() iter.Seq[K] {
-	return func(yield func(k K) bool) {
-		for _, k := range m.data {
-			if !k.used() || k.deleted() {
-				continue
-			}
-			if !yield(k.key) {
-				return
-			}
-		}
-	}
-}
-
-// Iterates over all of the values in the map. Uses the stdlib `iter` package so
-// this function can be used in a standard `for` loop.
-func (m *Map[K, V]) Vals() iter.Seq[V] {
-	return func(yield func(v V) bool) {
-		for _, k := range m.data {
-			if !k.used() || k.deleted() {
-				continue
-			}
-			if !yield(k.value) {
-				return
-			}
-		}
-	}
-}
-
-// Iterates over all of the values in the map. Uses the stdlib `iter` package so
-// this function can be used in a standard `for` loop. The value may be mutated
-// and the results will be seen by the hash map.
-func (m *Map[K, V]) PntrVals() iter.Seq[*V] {
-	return func(yield func(v *V) bool) {
-		for _, k := range m.data {
-			if !k.used() || k.deleted() {
-				continue
-			}
-			if !yield(&k.value) {
-				return
-			}
-		}
-	}
-}
+// // Creates a copy of the supplied hash map. All values will be copied using
+// // memcpy, meaning a shallow copy will be made of the values.
+// func (m *Map[K, V]) Copy() *Map[K, V] {
+// 	newData := make([]entry[K, V], cap(m.data), cap(m.data))
+// 	for i, v := range m.data {
+// 		newData[i] = v
+// 	}
+//
+// 	return &Map[K, V]{
+// 		len:  m.len,
+// 		data: newData,
+// 	}
+// }
+//
+// // Iterates over all of the keys in the map. Uses the stdlib `iter` package so
+// // this function can be used in a standard `for` loop.
+// func (m *Map[K, V]) Keys() iter.Seq[K] {
+// 	return func(yield func(k K) bool) {
+// 		for _, k := range m.data {
+// 			if !k.used() || k.deleted() {
+// 				continue
+// 			}
+// 			if !yield(k.key) {
+// 				return
+// 			}
+// 		}
+// 	}
+// }
+//
+// // Iterates over all of the values in the map. Uses the stdlib `iter` package so
+// // this function can be used in a standard `for` loop.
+// func (m *Map[K, V]) Vals() iter.Seq[V] {
+// 	return func(yield func(v V) bool) {
+// 		for _, k := range m.data {
+// 			if !k.used() || k.deleted() {
+// 				continue
+// 			}
+// 			if !yield(k.value) {
+// 				return
+// 			}
+// 		}
+// 	}
+// }
+//
+// // Iterates over all of the values in the map. Uses the stdlib `iter` package so
+// // this function can be used in a standard `for` loop. The value may be mutated
+// // and the results will be seen by the hash map.
+// func (m *Map[K, V]) PntrVals() iter.Seq[*V] {
+// 	return func(yield func(v *V) bool) {
+// 		for _, k := range m.data {
+// 			if !k.used() || k.deleted() {
+// 				continue
+// 			}
+// 			if !yield(&k.value) {
+// 				return
+// 			}
+// 		}
+// 	}
+// }

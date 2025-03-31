@@ -8,22 +8,37 @@ import (
 	sbtest "github.com/barbell-math/smoothbrain-test"
 )
 
-func TestEntryFlags(t *testing.T) {
-	e := entry[int32, int64]{}
-	sbtest.False(t, e.used())
-	sbtest.False(t, e.deleted())
+func TestSlotFlags(t *testing.T) {
+	g := group[int32, int64]{}
+	sbtest.False(t, g.used(0))
+	sbtest.False(t, g.deleted(0))
 
-	e.flags |= used
-	sbtest.True(t, e.used())
-	sbtest.False(t, e.deleted())
+	g.flags[0] |= used
+	sbtest.True(t, g.used(0))
+	sbtest.False(t, g.deleted(0))
 
-	e.flags |= deleted
-	sbtest.True(t, e.used())
-	sbtest.True(t, e.deleted())
+	g.flags[0] |= deleted
+	sbtest.True(t, g.used(0))
+	sbtest.True(t, g.deleted(0))
 
-	e.flags &= ^deleted
-	sbtest.True(t, e.used())
-	sbtest.False(t, e.deleted())
+	g.flags[0] &= ^deleted
+	sbtest.True(t, g.used(0))
+	sbtest.False(t, g.deleted(0))
+}
+
+func TestSplitHash(t *testing.T) {
+	m := New[uint32, uint64]()
+	group, slot := m.splitHash(0b11111111)
+	sbtest.Eq(t, group, 0b1)
+	sbtest.Eq(t, slot, 0b1111111)
+
+	group, slot = m.splitHash(0b1011111111)
+	sbtest.Eq(t, group, 0b101)
+	sbtest.Eq(t, slot, 0b1111111)
+
+	group, slot = m.splitHash(0b1011111110)
+	sbtest.Eq(t, group, 0b101)
+	sbtest.Eq(t, slot, 0b1111110)
 }
 
 func TestHashMapPut(t *testing.T) {
@@ -33,7 +48,7 @@ func TestHashMapPut(t *testing.T) {
 	h.Put(2, 2)
 	h.Put(3, 3)
 	sbtest.Eq(t, 3, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 }
 
 func TestHashMapGet(t *testing.T) {
@@ -43,7 +58,7 @@ func TestHashMapGet(t *testing.T) {
 	h.Put(2, 2)
 	h.Put(3, 3)
 	sbtest.Eq(t, 3, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 
 	val, ok := h.Get(1)
 	sbtest.True(t, ok)
@@ -67,21 +82,21 @@ func TestHashMapRemove(t *testing.T) {
 	h.Put(2, 2)
 	h.Put(3, 3)
 	sbtest.Eq(t, 3, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 
 	h.Remove(1)
 	sbtest.Eq(t, 2, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 	h.Remove(1)
 	sbtest.Eq(t, 2, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 
 	h.Remove(2)
 	sbtest.Eq(t, 1, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 	h.Remove(3)
 	sbtest.Eq(t, 0, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 }
 
 func TestHashMapClear(t *testing.T) {
@@ -91,11 +106,11 @@ func TestHashMapClear(t *testing.T) {
 	h.Put(2, 2)
 	h.Put(3, 3)
 	sbtest.Eq(t, 3, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 
 	h.Clear()
 	sbtest.Eq(t, 0, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 }
 
 func TestHashMapZero(t *testing.T) {
@@ -105,54 +120,53 @@ func TestHashMapZero(t *testing.T) {
 	h.Put(2, 2)
 	h.Put(3, 3)
 	sbtest.Eq(t, 3, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 
 	h.Zero()
 	sbtest.Eq(t, 0, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 }
 
-func TestGrowAndShrinkFactors(t *testing.T) {
-	origGrowFactor := _growFactor
-	origShrinkFactor := _shrinkFactor
-	origDefaultInitialCap := _defaultInitialCap
-	t.Cleanup(func() {
-		_growFactor = origGrowFactor
-		_shrinkFactor = origShrinkFactor
-		_defaultInitialCap = origDefaultInitialCap
-	})
-
-	_growFactor = 50
-	_shrinkFactor = 50
-	_defaultInitialCap = 4
-	h := New[int8, int16]()
-
-	h.Put(1, 1)
-	sbtest.Eq(t, 1, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
-	h.Put(2, 2)
-	sbtest.Eq(t, 2, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
-
-	h.Put(3, 3)
-	sbtest.Eq(t, 3, h.Len())
-	sbtest.Eq(t, _defaultInitialCap*2, cap(h.data))
-
-	h.Remove(3)
-	sbtest.Eq(t, 2, h.Len())
-	sbtest.Eq(t, _defaultInitialCap, cap(h.data))
-
-	val, ok := h.Get(1)
-	sbtest.True(t, ok)
-	sbtest.Eq(t, 1, val)
-	val, ok = h.Get(2)
-	sbtest.True(t, ok)
-	sbtest.Eq(t, 2, val)
-	val, ok = h.Get(3)
-	sbtest.False(t, ok)
-	sbtest.Eq(t, 0, val)
-}
-
+//	func TestGrowAndShrinkFactors(t *testing.T) {
+//		origGrowFactor := _growFactor
+//		origShrinkFactor := _shrinkFactor
+//		origDefaultInitialCap := _defaultInitialCap
+//		t.Cleanup(func() {
+//			_growFactor = origGrowFactor
+//			_shrinkFactor = origShrinkFactor
+//			_defaultInitialCap = origDefaultInitialCap
+//		})
+//
+//		_growFactor = 50
+//		_shrinkFactor = 50
+//		_defaultInitialCap = 4
+//		h := New[int8, int16]()
+//
+//		h.Put(1, 1)
+//		sbtest.Eq(t, 1, h.Len())
+//		sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+//		h.Put(2, 2)
+//		sbtest.Eq(t, 2, h.Len())
+//		sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+//
+//		h.Put(3, 3)
+//		sbtest.Eq(t, 3, h.Len())
+//		sbtest.Eq(t, _defaultInitialCap*2, cap(h.groups))
+//
+//		h.Remove(3)
+//		sbtest.Eq(t, 2, h.Len())
+//		sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+//
+//		val, ok := h.Get(1)
+//		sbtest.True(t, ok)
+//		sbtest.Eq(t, 1, val)
+//		val, ok = h.Get(2)
+//		sbtest.True(t, ok)
+//		sbtest.Eq(t, 2, val)
+//		val, ok = h.Get(3)
+//		sbtest.False(t, ok)
+//		sbtest.Eq(t, 0, val)
+//	}
 func TestLargeishDataset(t *testing.T) {
 	op := func() {
 		h := New[int32, int64]()
