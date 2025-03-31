@@ -1,10 +1,10 @@
-// A very simple library that implements a generic, double-hashed map.
+// A very simple library that implements a generic, linear probing map.
 package sbmap
 
 import (
 	"hash/maphash"
 	"iter"
-	"unsafe"
+	// "unsafe"
 )
 
 type (
@@ -39,7 +39,7 @@ var (
 	// A value between 0 and 100 that determines how empty the map can get
 	// before the hash map halves the underlying slice.
 	_shrinkFactor = 25
-	// A value between 1 and 100 that determins what percentage of 'deleted'
+	// A value between 1 and 100 that determines what percentage of 'deleted'
 	// entries there can be before the map gets rehashed.
 	_rehashFactor = 25
 	// The power of two to use when increasing the backing slices capacity.
@@ -144,33 +144,9 @@ func (m *Map[K, V]) Len() int {
 
 // The double hash function that the hash map will use when a collision occurs
 // to perform probing of the underlying slice.
-func (m *Map[K, V]) doubleHash(k K) uint64 {
-	switch any(k).(type) {
-	case int:
-		return uint64(any(k).(int) | 0b1)
-	case int8:
-		return uint64(any(k).(int8) | 0b1)
-	case int16:
-		return uint64(any(k).(int16) | 0b1)
-	case int32:
-		return uint64(any(k).(int32) | 0b1)
-	case int64:
-		return uint64(any(k).(int64) | 0b1)
-	case uint:
-		return uint64(any(k).(uint) | 0b1)
-	case uint8:
-		return uint64(any(k).(uint8) | 0b1)
-	case uint16:
-		return uint64(any(k).(uint16) | 0b1)
-	case uint32:
-		return uint64(any(k).(uint32) | 0b1)
-	case uint64:
-		return uint64(any(k).(uint64) | 0b1)
-	default:
-		bytes := (*byte)(unsafe.Pointer(&k))
-		allBytes := unsafe.Slice(bytes, unsafe.Sizeof(k))
-		return maphash.Bytes(_comparableSeed, allBytes) | 0b1
-	}
+func (m *Map[K, V]) doubleHash(hash uint64) uint64 {
+	// return maphash.Comparable(_comparableSeed, hash) | 0b1
+	return 3
 }
 
 // Clamps the hash to always be within the slice lengtm.
@@ -183,8 +159,8 @@ func (m *Map[K, V]) clampedHash(hash uint64) uint64 {
 // is not found the boolean return value will be false and a zero-initilized
 // value of type V will be returned.
 func (m *Map[K, V]) Get(k K) (V, bool) {
-	doubleHash := m.doubleHash(k)
 	hash := m.clampedHash(m.hash(k))
+	doubleHash := m.doubleHash(hash)
 	for i := uint64(1); m.data[hash].used(); i++ {
 		if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
 			return m.data[hash].value, true
@@ -209,8 +185,8 @@ func (m *Map[K, V]) Put(k K, v V) {
 		m.resize(cap(m.data) << _sliceGrowthFactor)
 	}
 
-	doubleHash := m.doubleHash(k)
 	hash := m.clampedHash(m.hash(k))
+	doubleHash := m.doubleHash(hash)
 	for i := uint64(1); m.data[hash].used(); i++ {
 		if m.eq(m.data[hash].key, k) {
 			m.data[hash].value = v
@@ -219,6 +195,7 @@ func (m *Map[K, V]) Put(k K, v V) {
 				m.del--
 				m.data[hash].flags &= ^deleted
 			}
+			return
 		}
 		hash = m.clampedHash(hash + i*doubleHash)
 	}
@@ -249,8 +226,8 @@ func (m *Map[K, V]) resize(newCap int) {
 // Removes the supplied key and associated value from the hash map if it is
 // present. If the key is not present in the map then no action will be taken.
 func (m *Map[K, V]) Remove(k K) {
-	doubleHash := m.doubleHash(k)
 	hash := m.clampedHash(m.hash(k))
+	doubleHash := m.doubleHash(hash)
 	for i := uint64(1); m.data[hash].used(); i++ {
 		if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
 			break
