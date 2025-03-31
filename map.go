@@ -4,7 +4,6 @@ package sbmap
 import (
 	"hash/maphash"
 	"iter"
-	// "unsafe"
 )
 
 type (
