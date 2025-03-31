@@ -121,7 +121,7 @@ func NewCap[K comparable, V comparable](_cap int) Map[K, V] {
 
 // Creates a Map where K is the key type and V is the value type with a capacity
 // of `_cap`. The supplied `eq` and `hash` functions will be used by the Map. If
-// two values are equal the `hash` function hash funciton should return the same
+// two values are equal the `hash` function hash function should return the same
 // hash for both values.
 func NewCustom[K any, V any](
 	_cap int,
