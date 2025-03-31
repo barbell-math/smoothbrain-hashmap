@@ -178,7 +178,7 @@ Creates a Map where K is the key type and V is the value type with a capacity of
 func NewCustom[K any, V any](_cap int, eq func(l K, r K) bool, hash func(v K) uint64) Map[K, V]
 ```
 
-Creates a Map where K is the key type and V is the value type with a capacity of \`\_cap\`. The supplied \`eq\` and \`hash\` functions will be used by the Map. If two values are equal the \`hash\` function hash funciton should return the same hash for both values.
+Creates a Map where K is the key type and V is the value type with a capacity of \`\_cap\`. The supplied \`eq\` and \`hash\` functions will be used by the Map. If two values are equal the \`hash\` function hash function should return the same hash for both values.
 
 <a name="Map[K, V].Clear"></a>
 ### func \(\*Map\[K, V\]\) [Clear](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L256>)
