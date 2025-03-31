@@ -1,22 +1,31 @@
+// A very simple library that implements a generic, double-hashed map.
 package sbmap
 
 import (
 	"hash/maphash"
+	"iter"
+	"unsafe"
 )
 
 type (
 	entry[K any, V any] struct {
-		key    K
-		value  V
-		filled bool
+		key   K
+		value V
+		flags int8
 	}
 
 	Map[K any, V any] struct {
 		data []entry[K, V]
 		len  int
+		del  int
 		eq   func(l K, r K) bool
 		hash func(l K) uint64
 	}
+)
+
+const (
+	used = 1 << iota
+	deleted
 )
 
 var (
@@ -26,14 +35,23 @@ var (
 	_defaultInitialCap = 8
 	// A value between 0 and 100 that determines how full the map can get before
 	// the hash map doubles the underlying slice.
-	_growFactor = 75
+	_growFactor = 50
 	// A value between 0 and 100 that determines how empty the map can get
 	// before the hash map halves the underlying slice.
-	_shrinkFactor = 50
-	// Note that growth factor must always be a power of two because of how the
-	// hash clamping works!!
-	_sliceGrowthFactor = 2
+	_shrinkFactor = 25
+	// A value between 1 and 100 that determins what percentage of 'deleted'
+	// entries there can be before the map gets rehashed.
+	_rehashFactor = 25
+	// The power of two to use when increasing the backing slices capacity.
+	_sliceGrowthFactor = 1
 )
+
+func (e entry[K, V]) used() bool {
+	return e.flags&used != 0
+}
+func (e entry[K, V]) deleted() bool {
+	return e.flags&deleted != 0
+}
 
 // An equality function that can be passed to [NewCustom] when using a
 // comparable type. If the key type is comparable then you can simply use [New]
@@ -46,13 +64,39 @@ func ComparableEqual[T comparable](l T, r T) bool {
 // type. If the key type is comparable then you can simply use [New] instead of
 // [NewCustom] and this function will be used by default.
 func ComparableHash[T comparable](v T) uint64 {
-	return maphash.Comparable(_comparableSeed, v)
+	// For speed if the underlying type is an int then just return the int
+	// value as the hasm. This might be less evenly distributed but is much
+	// faster than the maphasm.Comparable funciton.
+	switch any(v).(type) {
+	case int:
+		return uint64(any(v).(int))
+	case int8:
+		return uint64(any(v).(int8))
+	case int16:
+		return uint64(any(v).(int16))
+	case int32:
+		return uint64(any(v).(int32))
+	case int64:
+		return uint64(any(v).(int64))
+	case uint:
+		return uint64(any(v).(uint))
+	case uint8:
+		return uint64(any(v).(uint8))
+	case uint16:
+		return uint64(any(v).(uint16))
+	case uint32:
+		return uint64(any(v).(uint32))
+	case uint64:
+		return uint64(any(v).(uint64))
+	default:
+		return maphash.Comparable(_comparableSeed, v)
+	}
 }
 
 // Creates a Map where K is the key type and V is the value type.
-// ComparableEqual and ComparableHash funcitons will be used by the returned
-// Map. For creating a Map with non-comparable types or simply custom
-// hash and equality functions refer to [NewCustom].
+// [ComparableEqual] and [ComparableHash] funcitons will be used by the returned
+// Map. For creating a Map with non-comparable types or custom hash and equality
+// functions refer to [NewCustom].
 func New[K comparable, V comparable]() Map[K, V] {
 	return Map[K, V]{
 		data: make([]entry[K, V], _defaultInitialCap, _defaultInitialCap),
@@ -62,35 +106,91 @@ func New[K comparable, V comparable]() Map[K, V] {
 	}
 }
 
-// TODO
-// func NewCap[K any, V any](cap int) Map[K, V] {
-//
-// }
+// Creates a Map where K is the key type and V is the value type with a capacity
+// of `_cap`. [ComparableEqual] and [ComparableHash] functions will be used by
+// the returned Map. For creating a Map with non-comparable types or custom hash
+// and equality functions refer to [NewCustom].
+func NewCap[K comparable, V comparable](_cap int) Map[K, V] {
+	return Map[K, V]{
+		data: make([]entry[K, V], _cap, _cap),
+		len:  0,
+		eq:   ComparableEqual[K],
+		hash: ComparableHash[K],
+	}
+}
 
-// TODO
-// func NewCustom
+// Creates a Map where K is the key type and V is the value type with a capacity
+// of `_cap`. The supplied `eq` and `hash` functions will be used by the Map. If
+// two values are equal the `hash` function hash funciton should return the same
+// hash for both values.
+func NewCustom[K any, V any](
+	_cap int,
+	eq func(l K, r K) bool,
+	hash func(v K) uint64,
+) Map[K, V] {
+	return Map[K, V]{
+		data: make([]entry[K, V], _cap, _cap),
+		len:  0,
+		eq:   eq,
+		hash: hash,
+	}
+}
 
 // Returns the number of elements in the hash map. This is different than the
 // maps capacity.
-func (h *Map[K, V]) Len() int {
-	return h.len
+func (m *Map[K, V]) Len() int {
+	return m.len - m.del
 }
 
-func (h *Map[K, V]) clampedHash(hash uint64) uint64 {
-	return hash & (uint64(cap(h.data)) - 1)
+// The double hash function that the hash map will use when a collision occurs
+// to perform probing of the underlying slice.
+func (m *Map[K, V]) doubleHash(k K) uint64 {
+	switch any(k).(type) {
+	case int:
+		return uint64(any(k).(int) | 0b1)
+	case int8:
+		return uint64(any(k).(int8) | 0b1)
+	case int16:
+		return uint64(any(k).(int16) | 0b1)
+	case int32:
+		return uint64(any(k).(int32) | 0b1)
+	case int64:
+		return uint64(any(k).(int64) | 0b1)
+	case uint:
+		return uint64(any(k).(uint) | 0b1)
+	case uint8:
+		return uint64(any(k).(uint8) | 0b1)
+	case uint16:
+		return uint64(any(k).(uint16) | 0b1)
+	case uint32:
+		return uint64(any(k).(uint32) | 0b1)
+	case uint64:
+		return uint64(any(k).(uint64) | 0b1)
+	default:
+		bytes := (*byte)(unsafe.Pointer(&k))
+		allBytes := unsafe.Slice(bytes, unsafe.Sizeof(k))
+		return maphash.Bytes(_comparableSeed, allBytes) | 0b1
+	}
+}
+
+// Clamps the hash to always be within the slice lengtm.
+func (m *Map[K, V]) clampedHash(hash uint64) uint64 {
+	return hash & (uint64(cap(m.data)) - 1)
 }
 
 // Gets the value that is related to the supplied key. If the key is found the
 // boolean return value will be true and the value will be returned. If the key
 // is not found the boolean return value will be false and a zero-initilized
 // value of type V will be returned.
-func (h *Map[K, V]) Get(k K) (V, bool) {
-	hash := h.clampedHash(h.hash(k))
-	for h.data[hash].filled {
-		if h.eq(h.data[hash].key, k) {
-			return h.data[hash].value, true
+func (m *Map[K, V]) Get(k K) (V, bool) {
+	doubleHash := m.doubleHash(k)
+	hash := m.clampedHash(m.hash(k))
+	for i := uint64(1); m.data[hash].used(); i++ {
+		if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
+			return m.data[hash].value, true
 		}
-		hash = h.clampedHash(hash + 1)
+
+		hash = m.clampedHash(hash + i*doubleHash)
 	}
 
 	var tmp V
@@ -100,135 +200,153 @@ func (h *Map[K, V]) Get(k K) (V, bool) {
 // Places the supplied key, value pair in the hash map. If the key was already
 // present in the map the old value will be overwritten. The map will resize as
 // necessary.
-func (h *Map[K, V]) Put(k K, v V) {
+func (m *Map[K, V]) Put(k K, v V) {
 	// Original equation:
 	// 	len/cap *100 >= _growFactor
 	// Except dividing ints is bad, we want more precision. So remove the
 	// division and we get this:
-	if h.len*100 >= _growFactor*cap(h.data) {
-		h.resize(cap(h.data) * _sliceGrowthFactor)
+	if m.len*100 >= _growFactor*cap(m.data) {
+		m.resize(cap(m.data) << _sliceGrowthFactor)
 	}
 
-	hash := h.clampedHash(h.hash(k))
-	for h.data[hash].filled {
-		if h.eq(h.data[hash].key, k) {
-			h.data[hash].value = v
+	doubleHash := m.doubleHash(k)
+	hash := m.clampedHash(m.hash(k))
+	for i := uint64(1); m.data[hash].used(); i++ {
+		if m.eq(m.data[hash].key, k) {
+			m.data[hash].value = v
+
+			if m.data[hash].deleted() {
+				m.del--
+				m.data[hash].flags &= ^deleted
+			}
 		}
-		hash = h.clampedHash(hash + 1)
+		hash = m.clampedHash(hash + i*doubleHash)
 	}
 
-	h.data[hash].key = k
-	h.data[hash].value = v
-	h.data[hash].filled = true
-	h.len++
+	m.data[hash].key = k
+	m.data[hash].value = v
+	m.data[hash].flags |= used
+	m.len++
 }
 
-func (h *Map[K, V]) resize(newCap int) {
+func (m *Map[K, V]) resize(newCap int) {
 	newHMap := Map[K, V]{
 		data: make([]entry[K, V], newCap, newCap),
 		len:  0,
-		eq:   h.eq,
-		hash: h.hash,
+		eq:   m.eq,
+		hash: m.hash,
 	}
 
-	for _, entry := range h.data {
-		if entry.filled {
+	for _, entry := range m.data {
+		if entry.used() && !entry.deleted() {
 			newHMap.Put(entry.key, entry.value)
 		}
 	}
 
-	*h = newHMap
+	*m = newHMap
 }
 
 // Removes the supplied key and associated value from the hash map if it is
 // present. If the key is not present in the map then no action will be taken.
-func (h *Map[K, V]) Remove(k K) {
-	hash := h.clampedHash(h.hash(k))
-	for h.data[hash].filled && !h.eq(h.data[hash].key, k) {
-		hash = h.clampedHash(hash + 1)
+func (m *Map[K, V]) Remove(k K) {
+	doubleHash := m.doubleHash(k)
+	hash := m.clampedHash(m.hash(k))
+	for i := uint64(1); m.data[hash].used(); i++ {
+		if !m.data[hash].deleted() && m.eq(m.data[hash].key, k) {
+			break
+		}
+		hash = m.clampedHash(hash + i*doubleHash)
 	}
-	if !h.data[hash].filled {
+
+	if !m.data[hash].used() || m.data[hash].deleted() {
 		return
 	}
 
-	h.data[hash] = entry[K, V]{}
-	h.len--
-
-	wrapped := false
-	holeHash := hash
-	hash = h.clampedHash(hash + 1)
-	for h.data[hash].filled {
-		requestedHash := h.clampedHash(h.hash(h.data[hash].key))
-		moveEntry := !wrapped && requestedHash <= holeHash
-		moveEntry = (moveEntry || (wrapped && requestedHash >= holeHash && requestedHash > hash))
-		if moveEntry {
-			h.data[holeHash] = h.data[hash]
-			h.data[hash] = entry[K, V]{}
-			holeHash = hash
-		}
-
-		wrapped = (hash == uint64(len(h.data)-1))
-		hash = h.clampedHash(hash + 1)
-	}
+	m.data[hash].flags |= deleted
+	m.del++
 
 	// Original equation:
 	// 	len/cap *100 <= _shrinkFactor
 	// Except dividing ints is bad, we want more precision. So remove the
 	// division and we get this:
-	if cap(h.data) > _defaultInitialCap && h.len*100 <= _shrinkFactor*cap(h.data) {
-		h.resize(cap(h.data) / 2)
+	if cap(m.data) > _defaultInitialCap && m.Len()*100 <= _shrinkFactor*cap(m.data) {
+		m.resize(cap(m.data) >> _sliceGrowthFactor)
 	}
 }
 
 // Removes all values from the underlying hash but keeps the maps underlying
 // capacity.
-func (h *Map[K, V]) Clear() {
-	for i, v := range h.data {
-		if v.filled {
-			h.data[i] = entry[K, V]{}
+func (m *Map[K, V]) Clear() {
+	for i, v := range m.data {
+		if v.used() {
+			m.data[i] = entry[K, V]{}
 		}
 	}
-	h.len = 0
+	m.len = 0
 }
 
 // Removes all values from the underlying hash and resets the maps capacity.
-func (h *Map[K, V]) Zero() {
-	h.data = make([]entry[K, V], _defaultInitialCap, _defaultInitialCap)
-	h.len = 0
+func (m *Map[K, V]) Zero() {
+	m.data = make([]entry[K, V], _defaultInitialCap, _defaultInitialCap)
+	m.len = 0
 }
 
 // Creates a copy of the supplied hash map. All values will be copied using
 // memcpy, meaning a shallow copy will be made of the values.
-func (h *Map[K, V]) Copy() *Map[K, V] {
-	newData := make([]entry[K, V], cap(h.data), cap(h.data))
-	for i, v := range h.data {
+func (m *Map[K, V]) Copy() *Map[K, V] {
+	newData := make([]entry[K, V], cap(m.data), cap(m.data))
+	for i, v := range m.data {
 		newData[i] = v
 	}
 
 	return &Map[K, V]{
-		len:  h.len,
+		len:  m.len,
 		data: newData,
 	}
 }
 
-// Iterates over all of the key, value pairs in the map and calls `op` on each
-// pair. Any changes to the value will not be propigated back to the hash map.
-func (h *Map[K, V]) Each(op func(k K, v V)) {
-	for _, v := range h.data {
-		if v.filled {
-			op(v.key, v.value)
+// Iterates over all of the keys in the map. Uses the stdlib `iter` package so
+// this function can be used in a standard `for` loop.
+func (m *Map[K, V]) Keys() iter.Seq[K] {
+	return func(yield func(k K) bool) {
+		for _, k := range m.data {
+			if !k.used() || k.deleted() {
+				continue
+			}
+			if !yield(k.key) {
+				return
+			}
 		}
 	}
 }
 
-// Iterates over all of the key, value pairs in the map and calls `op` on each
-// pair. The value may be mutated and the results will be seen by the hash map.
-func (h *Map[K, V]) EachPntr(op func(k K, v *V)) {
-	for _, v := range h.data {
-		if v.filled {
-			op(v.key, &v.value)
+// Iterates over all of the values in the map. Uses the stdlib `iter` package so
+// this function can be used in a standard `for` loop.
+func (m *Map[K, V]) Vals() iter.Seq[V] {
+	return func(yield func(v V) bool) {
+		for _, k := range m.data {
+			if !k.used() || k.deleted() {
+				continue
+			}
+			if !yield(k.value) {
+				return
+			}
 		}
 	}
 }
 
-// TODO - std lib iterator?
+// Iterates over all of the values in the map. Uses the stdlib `iter` package so
+// this function can be used in a standard `for` loop. The value may be mutated
+// and the results will be seen by the hash map.
+func (m *Map[K, V]) PntrVals() iter.Seq[*V] {
+	return func(yield func(v *V) bool) {
+		for _, k := range m.data {
+			if !k.used() || k.deleted() {
+				continue
+			}
+			if !yield(&k.value) {
+				return
+			}
+		}
+	}
+}
