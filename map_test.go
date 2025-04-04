@@ -5,25 +5,26 @@ import (
 	"math/rand"
 	"testing"
 
+	slotprobes "github.com/barbell-math/smoothbrain-hashmap/slotProbes"
 	sbtest "github.com/barbell-math/smoothbrain-test"
 )
 
 func TestSlotFlags(t *testing.T) {
 	g := group[int32, int64]{}
-	sbtest.False(t, g.used(0))
-	sbtest.False(t, g.deleted(0))
+	sbtest.False(t, g.Used(0))
+	sbtest.False(t, g.Deleted(0))
 
-	g.flags[0] |= used
-	sbtest.True(t, g.used(0))
-	sbtest.False(t, g.deleted(0))
+	g.flags[0] |= slotprobes.Used
+	sbtest.True(t, g.Used(0))
+	sbtest.False(t, g.Deleted(0))
 
-	g.flags[0] |= deleted
-	sbtest.True(t, g.used(0))
-	sbtest.True(t, g.deleted(0))
+	g.flags[0] |= slotprobes.Deleted
+	sbtest.True(t, g.Used(0))
+	sbtest.True(t, g.Deleted(0))
 
-	g.flags[0] &= ^deleted
-	sbtest.True(t, g.used(0))
-	sbtest.False(t, g.deleted(0))
+	g.flags[0] &= ^slotprobes.Deleted
+	sbtest.True(t, g.Used(0))
+	sbtest.False(t, g.Deleted(0))
 }
 
 func TestSplitHash(t *testing.T) {
