@@ -8,17 +8,17 @@ import (
 )
 
 func BenchmarkGetSlotProbe(b *testing.B) {
-	flags := [slotprobes.GroupSize]int8{}
-	slotKeys := [slotprobes.GroupSize]int8{}
-	flagsRow := [8]int8{0, 1, 2, 0, 1, 2, 0, 0}
-	slotKeysRow := [8]int8{3, 3, 3, 1, 1, 1, 0, 0}
+	flags := [slotprobes.GroupSize]uint8{}
+	slotKeys := [slotprobes.GroupSize]uint8{}
+	flagsRow := [8]uint8{0, 1, 2, 0, 1, 2, 0, 0}
+	slotKeysRow := [8]uint8{3, 3, 3, 1, 1, 1, 0, 0}
 	for i := 0; i < slotprobes.GroupSize; i += 8 {
 		copy(flags[i:], flagsRow[:])
 		copy(slotKeys[i:], slotKeysRow[:])
 	}
 
 	for b.Loop() {
-		_, _, _ = slotprobes.GetSlotProbe(3, flags, slotKeys)
+		_, _ = slotprobes.GetSlotProbe(3, flags, slotKeys)
 	}
 }
 

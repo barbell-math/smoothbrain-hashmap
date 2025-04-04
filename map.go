@@ -14,8 +14,8 @@ type (
 	}
 
 	group[K any, V any] struct {
-		flags    [slotprobes.GroupSize]int8
-		slotKeys [slotprobes.GroupSize]int8
+		flags    [slotprobes.GroupSize]uint8
+		slotKeys [slotprobes.GroupSize]uint8
 		slots    [slotprobes.GroupSize]slot[K, V]
 	}
 
@@ -30,7 +30,7 @@ type (
 
 var (
 	_comparableSeed = maphash.MakeSeed()
-	// The default initial capacity that will be Used if no capacity or zero
+	// The default initial capacity that will be used if no capacity or zero
 	// capacity is supplied
 	_defaultInitialCap = max(1, slotprobes.GroupSize/64)
 	// A value between 0 and 100 that determines how full the map can get before
@@ -47,10 +47,10 @@ var (
 )
 
 // TODO - delete these once simd slot ops are working
-func (g group[K, V]) Used(idx int) bool {
+func (g *group[K, V]) Used(idx int) bool {
 	return g.flags[idx]&slotprobes.Used != 0
 }
-func (g group[K, V]) Deleted(idx int) bool {
+func (g *group[K, V]) Deleted(idx int) bool {
 	return g.flags[idx]&slotprobes.Deleted != 0
 }
 
@@ -145,8 +145,8 @@ func (m *Map[K, V]) Len() int {
 
 // The group hash is the upper 57 bits of the original hash.
 // The slot hash is the lower 7 bits of the original hash.
-func (m *Map[K, V]) splitHash(hash uint64) (uint64, int8) {
-	return hash >> 7, int8(hash & 0b1111111)
+func (m *Map[K, V]) splitHash(hash uint64) (uint64, uint8) {
+	return hash >> 7, uint8(hash & 0b1111111)
 }
 
 // The double hash function that the hash map will use when a collision occurs
@@ -173,24 +173,24 @@ func (m *Map[K, V]) Get(k K) (V, bool) {
 
 	for i := uint64(1); ; i++ {
 
-		slotProbeRes, hasPotentialValue, hasEmptySlot := slotprobes.GetSlotProbe(
+		potentialMatches, emptySlots := slotprobes.GetSlotProbe(
 			slotHash,
 			m.groups[groupHash].flags,
 			m.groups[groupHash].slotKeys,
 		)
-		if !hasPotentialValue && !hasEmptySlot {
-			groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
-			continue
-		}
 
-		for j := 0; (hasPotentialValue || hasEmptySlot) && j < slotprobes.GroupSize; j++ {
-			if !m.groups[groupHash].Used(j) {
+		// Potential matches bit field will be 0 when no slots matched
+		// Empty slots bit field will be 0 when no slots are empty
+		for j := 0; (potentialMatches > 0 || emptySlots > 0) && j < slotprobes.GroupSize; j++ {
+			if emptySlots&0b1 == 1 {
 				var tmp V
 				return tmp, false
 			}
-			if slotProbeRes[j] > 0 && m.eq(m.groups[groupHash].slots[j].key, k) {
+			if potentialMatches&0b1 == 1 && m.eq(m.groups[groupHash].slots[j].key, k) {
 				return m.groups[groupHash].slots[j].value, true
 			}
+			potentialMatches = potentialMatches >> 1
+			emptySlots = emptySlots >> 1
 		}
 
 		// for i, slotKey := range m.groups[groupHash].slotKeys {
@@ -229,7 +229,9 @@ func (m *Map[K, V]) Put(k K, v V) {
 
 	for i := uint64(1); ; i++ {
 
-		for j, slotKey := range m.groups[groupHash].slotKeys {
+		// for j := len(m.groups[groupHash].slotKeys) - 1; j >= 0; j-- {
+		for j := 0; j < len(m.groups[groupHash].slotKeys); j++ {
+			slotKey := m.groups[groupHash].slotKeys[j]
 			if !m.groups[groupHash].Used(j) {
 				m.groups[groupHash].slots[j] = slot[K, V]{key: k, value: v}
 				m.groups[groupHash].slotKeys[j] = slotHash
@@ -283,14 +285,16 @@ func (m *Map[K, V]) Remove(k K) {
 
 	for i := uint64(1); ; i++ {
 
-		for i, slotKey := range m.groups[groupHash].slotKeys {
-			if !m.groups[groupHash].Used(i) {
+		// for j := len(m.groups[groupHash].slotKeys) - 1; j >= 0; j-- {
+		for j := 0; j < len(m.groups[groupHash].slotKeys); j++ {
+			slotKey := m.groups[groupHash].slotKeys[j]
+			if !m.groups[groupHash].Used(j) {
 				goto end
 			}
 			if slotHash == slotKey {
-				iterSlot := &m.groups[groupHash].slots[i]
-				if !m.groups[groupHash].Deleted(i) && m.eq(iterSlot.key, k) {
-					m.groups[groupHash].flags[i] |= slotprobes.Deleted
+				iterSlot := &m.groups[groupHash].slots[j]
+				if !m.groups[groupHash].Deleted(j) && m.eq(iterSlot.key, k) {
+					m.groups[groupHash].flags[j] |= slotprobes.Deleted
 					m.del++
 					goto end
 				}

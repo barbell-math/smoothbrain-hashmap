@@ -1,6 +1,6 @@
 package slotprobes
 
 const (
-	Used = 1 << iota
+	Used uint8 = 1 << iota
 	Deleted
 )

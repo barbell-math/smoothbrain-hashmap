@@ -2,64 +2,68 @@
 
 #include "textflag.h"
 
-// These constants must be kept in sync with the vars in the AllBuildTargets file
+// !!! Note !!!
+// These constants must be kept in sync with the constants in the
+// AllBuildTargets file
 #define Used $1
 #define Deleted $2
 
 // func getSlotProbe(
-// 		key int8,
-// 		flags [32]int8,
-// 		slotKeys [32]int8,
-// ) (potentialValues [32]int8, hasPotentialValue bool, hasEmptySlot bool)
+// 		key uint8,
+// 		flags [32]uint8,
+// 		slotKeys [32]uint8,
+// ) (potentialValues uint32, isEmpty uint32)
 //
 // memory layout of the stack relative to FP
 //  +0   				key
 //  +1  through +32 	flags
 //  +33 through +64		slotKeys
 //  +65 through +71		allignment padding
-//  +72 through +103	potentialValues 	return value
-//  +104 				hasPotentialValue	return value
-//  +105				hasEmptySlot		return value
+//  +72 through +75		potentialValues 	return value
+//  +76 through +79		isEmpty 			return value
 TEXT ·GetSlotProbe(SB),NOSPLIT,$0
 	MOVQ 			Used, R8				// load the used constant into reg
 	VPBROADCASTB	R8, Y0					// broadcast used flag
 	VMOVDQU8 		flags+1(FP), Y1			// load the flags into y reg
 	VPAND			Y0, Y1, Y2				// used & flags
+	VPCMPEQB        Y0, Y2, Y2				// (used & flags) == used
+	VEXTRACTI128	$1, Y2, X0				// Get the upper half of (used & flags) == used
+	PMOVMSKB		X0, R8					// store the sign flags in reg
+	SHLQ			$16, R8					// shift bits to left half of reg
+	VEXTRACTI128	$2, Y2, X0				// Get the lower half of (used & flags) == used
+	PMOVMSKB		X0, R9					// store the sign flags in reg
+	ORQ				R9, R8					// get the final used bit flags
+	XORQ			R12, R12				// clear register
+	ADDQ			R8, R12					// cpy register
+	NOTQ			R12						// inverse of (used & flags) == used
 
-	MOVQ 			$0b11111111, R8 		// load 255 constant into reg
-	VPBROADCASTB	R8, Y0 					// broadcast constant
-	VPANDN			Y2, Y0, Y4				// invert (used & flag) result
-	VPTEST			Y0, Y4					// test that reg is zero
-	JZ setHasEmptySlotToTrue				// If ZF==0 jump to false
-		MOVB $0, rv2+105(FP)				// Set hasEmptyValue rv to false
-		JMP setHasEmptySlot
-setHasEmptySlotToTrue:
-		MOVB $1, rv2+105(FP)				// Set hasEmptyValue rv to true
-setHasEmptySlot:
+	MOVQ 			Deleted, R9				// load the deleted constant into reg
+	VPBROADCASTB	R9, Y0					// broadcast deleted flag
+	VMOVDQU8 		flags+1(FP), Y1			// load the flags into y reg
+	VPAND			Y0, Y1, Y2				// deleted & flags
+	VPCMPEQB        Y0, Y2, Y2				// (deleted & flags) == deleted
+	VEXTRACTI128	$1, Y2, X0				// Get the upper half of (deleted & flags) == deleted
+	PMOVMSKB		X0, R9					// store the sign flags in reg
+	SHLQ			$16, R9					// shift bits to left half of reg
+	VEXTRACTI128	$1, Y2, X0				// Get the lower half of (used & flags) == used
+	PMOVMSKB		X2, R10					// store the sign flags in reg
+	ORQ				R10, R9					// get the final deleted bit flags
+	NOTQ			R9						// invert the bit mask
 
-	MOVQ 			Deleted, R8 			// load the used constant into reg
-	VPBROADCASTB	R8, Y0 					// broadcast deleted flag
-	VPAND			Y0, Y1, Y3				// deleted & flags
-	VPCMPEQB        Y0, Y3, Y3				// (deleted & flags) == deleted
-	MOVQ 			$0b11111111, R8 		// load 255 constant into reg
-	VPBROADCASTB	R8, Y0 					// broadcast constant
-	VPXOR			Y0, Y3, Y3				// ((deleted & flags) == deleted) ^ 0b11111111
-	VPAND			Y2, Y3, Y2				// (used & flags) & (((deleted & flags) == deleted) ^ 0b11111111)
+	MOVQ 			key+0(FP), R10			// load the key constant into reg
+	VPBROADCASTB	R10, Y0					// broadcast key
+	VMOVDQU8 		slotKeys+33(FP), Y1		// load the slot keys into y reg
+	VPCMPEQB        Y0, Y1, Y2				// slotKey == key
+	VEXTRACTI128	$1, Y2, X0				// Get the upper half of slotKey == key
+	PMOVMSKB		X0, R10					// store the sign flags in reg
+	SHLQ			$16, R10				// shift bits to left half of reg
+	VEXTRACTI128	$2, Y2, X0				// Get the lower half of slotKey == key
+	PMOVMSKB		X0, R11					// store the sign flags in reg
+	ORQ				R11, R10				// get the final slot key bit flags
 
-	MOVQ 			key+0(FP), R8 			// load key arg into reg
-	VPBROADCASTB	R8, Y0 					// broadcast key
-	VMOVDQU8 		slotKeys+33(FP), Y3		// load the slotKeys into y reg
-	VPCMPEQB        Y0, Y3, Y3				// slotKey == key
-	VPAND			Y2, Y3, Y2				// (used & flags) & (((deleted & flags) == deleted) ^ 0b11111111) & (slotKey == key)
-
-	VMOVDQU8 		Y2, rv+72(FP)			// cpy ret val to mem
-
-	MOVQ 			$0b11111111, R8 		// load 255 constant into reg
-	VPBROADCASTB	R8, Y0 					// broadcast constant
-	VPTEST			Y0, Y2					// test that reg is zero
-	JZ setHasPotentialValueToFalse			// If ZF==0 jump to false
-		MOVB $1, rv2+104(FP)				// Set bool rv to true
-		RET
-setHasPotentialValueToFalse:
-		MOVB $0, rv2+104(FP)				// Set bool rv to false
-		RET
+	ANDQ			R8, R9					// ((used & flags) == used) & ((deleted & flags) == deleted)
+	ANDQ			R9, R10					// ((used & flags) == used) & ((deleted & flags) == deleted) & (slotKey == key)
+	// TODO - why overwriting next value???
+	MOVD			R10, rv+72(FP)			// place the final bit field result in mem
+	MOVD			R12, rv+76(FP)			// place the is empty bit field result in mem
+	RET

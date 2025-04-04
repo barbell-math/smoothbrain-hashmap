@@ -9,34 +9,33 @@ const (
 // This is the slow approach that is Used when no simd is available. It is the
 // default operation that can be performed by the CPU in standard registers.
 func GetSlotProbe(
-	key int8,
-	flags [GroupSize]int8,
-	slotKeys [GroupSize]int8,
-) (potentialValues [GroupSize]int8, hasPotentialValue bool, hasEmptySlot bool) {
-	hasEmptySlot = false
-	UsedSplat := [GroupSize]int8{}
-	for i := 0; i < GroupSize; i++ {
-		UsedSplat[i] = flags[i] & Used
-		hasEmptySlot = hasEmptySlot || UsedSplat[i] == 0
+	key uint8,
+	flags [GroupSize]uint8,
+	slotKeys [GroupSize]uint8,
+) (potentialValues uint8, isEmpty uint8) {
+	isEmpty = 0
+	var usedSplat uint8
+	for i := GroupSize - 1; i >= 0; i-- {
+		usedSplat = (flags[i] & Used) | (usedSplat << 1)
 	}
+	isEmpty = ^usedSplat
 
-	delSplat := [GroupSize]int8{}
-	for i := 0; i < GroupSize; i++ {
-		delSplat[i] = ((flags[i] & Deleted) >> 1) ^ 0b1
+	var delSplat uint8
+	for i := GroupSize - 1; i >= 0; i-- {
+		delSplat = ((flags[i] & Deleted) >> 1) | (delSplat << 1)
 	}
+	delSplat = ^delSplat
 
-	eqSplat := [GroupSize]int8{}
-	for i := 0; i < GroupSize; i++ {
+	var eqSplat uint8
+	for i := GroupSize - 1; i >= 0; i-- {
+		var iterV uint8
 		if slotKeys[i] == key {
-			eqSplat[i] = 1
+			iterV = 0b1
 		}
+		eqSplat = iterV | (eqSplat << 1)
 	}
 
-	hasPotentialValue = false
-	for i := 0; i < GroupSize; i++ {
-		potentialValues[i] = UsedSplat[i] & delSplat[i] & eqSplat[i]
-		hasPotentialValue = hasPotentialValue || potentialValues[i] == 0b1
-	}
+	potentialValues = (usedSplat & delSplat & eqSplat)
 
 	return
 }

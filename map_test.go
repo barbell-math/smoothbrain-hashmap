@@ -2,7 +2,10 @@ package sbmap
 
 import (
 	"hash/maphash"
+	"log"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"testing"
 
 	slotprobes "github.com/barbell-math/smoothbrain-hashmap/slotProbes"
@@ -169,6 +172,13 @@ func TestHashMapZero(t *testing.T) {
 //		sbtest.Eq(t, 0, val)
 //	}
 func TestLargeishDataset(t *testing.T) {
+	f, err := os.Create("testProf.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	op := func() {
 		h := New[int32, int64]()
 

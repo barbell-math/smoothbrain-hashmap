@@ -9,12 +9,12 @@ import (
 )
 
 func TestGetSlotProbe(t *testing.T) {
-	res, hasPotentialValue, hasEmptyValue := GetSlotProbe(
+	res, isEmpty := GetSlotProbe(
 		3,
-		[8]int8{0, 1, 2, 0, 1, 2, 0, 0},
-		[8]int8{3, 3, 3, 1, 1, 1, 0, 0},
+		[8]uint8{0, 1, 2, 0, 1, 2, 0, 0},
+		[8]uint8{3, 3, 3, 1, 1, 1, 0, 0},
 	)
-	sbtest.Eq(t, res, [8]int8{0, 1, 0, 0, 0, 0, 0, 0})
-	sbtest.True(t, hasPotentialValue)
-	sbtest.True(t, hasEmptyValue)
+	sbtest.Eq(t, res, 0b00000010)
+	sbtest.Eq(t, isEmpty, 0b11101101)
+	sbtest.True(t, res > 0)
 }

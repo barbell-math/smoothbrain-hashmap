@@ -7,7 +7,7 @@ const (
 )
 
 func GetSlotProbe(
-	key int8,
-	flags [GroupSize]int8,
-	slotKeys [GroupSize]int8,
-) (potentialValues [GroupSize]int8, hasPotentialValue bool, hasEmptySlot bool)
+	key uint8,
+	flags [GroupSize]uint8,
+	slotKeys [GroupSize]uint8,
+) (potentialValues uint32, isEmpty uint32)
