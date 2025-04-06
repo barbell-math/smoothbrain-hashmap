@@ -8,8 +8,8 @@ import (
 	sbtest "github.com/barbell-math/smoothbrain-test"
 )
 
-func TestGetSlotProbe(t *testing.T) {
-	res, isEmpty := GetSlotProbe(
+func TestSlotProbe(t *testing.T) {
+	res, isEmpty := SlotProbe(
 		3,
 		[32]uint8{
 			0, 1, 2, 0, 1, 2, 0, 0,

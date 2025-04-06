@@ -8,7 +8,7 @@ const (
 
 // This is the slow approach that is Used when no simd is available. It is the
 // default operation that can be performed by the CPU in standard registers.
-func GetSlotProbe(
+func SlotProbe(
 	key uint8,
 	flags [GroupSize]uint8,
 	slotKeys [GroupSize]uint8,

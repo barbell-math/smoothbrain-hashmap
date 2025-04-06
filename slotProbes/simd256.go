@@ -6,7 +6,7 @@ const (
 	GroupSize = 32
 )
 
-func GetSlotProbe(
+func SlotProbe(
 	key uint8,
 	flags [GroupSize]uint8,
 	slotKeys [GroupSize]uint8,

@@ -8,27 +8,8 @@ import (
 	"runtime/pprof"
 	"testing"
 
-	slotprobes "github.com/barbell-math/smoothbrain-hashmap/slotProbes"
 	sbtest "github.com/barbell-math/smoothbrain-test"
 )
-
-func TestSlotFlags(t *testing.T) {
-	g := group[int32, int64]{}
-	sbtest.False(t, g.Used(0))
-	sbtest.False(t, g.Deleted(0))
-
-	g.flags[0] |= slotprobes.Used
-	sbtest.True(t, g.Used(0))
-	sbtest.False(t, g.Deleted(0))
-
-	g.flags[0] |= slotprobes.Deleted
-	sbtest.True(t, g.Used(0))
-	sbtest.True(t, g.Deleted(0))
-
-	g.flags[0] &= ^slotprobes.Deleted
-	sbtest.True(t, g.Used(0))
-	sbtest.False(t, g.Deleted(0))
-}
 
 func TestSplitHash(t *testing.T) {
 	m := New[uint32, uint64]()
@@ -183,11 +164,11 @@ func TestLargeishDataset(t *testing.T) {
 		h := New[int32, int64]()
 
 		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < 10000; i++ {
 			h.Put(int32(randVals.Int31()), int64(randVals.Int31()))
 		}
 		randVals = rand.New(rand.NewSource(3))
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < 10000; i++ {
 			randVal := randVals.Int31()
 			val, ok := h.Get(int32(randVal))
 			sbtest.True(t, ok)
@@ -195,14 +176,14 @@ func TestLargeishDataset(t *testing.T) {
 		}
 
 		randVals = rand.New(rand.NewSource(3))
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < 10000; i++ {
 			randVal := randVals.Int31()
 			h.Remove(int32(randVal))
 			// The next value would have been the value so skip it
 			_ = randVals.Int31()
 
 			iterRandVals := rand.New(rand.NewSource(3))
-			for j := 0; j < 1000; j++ {
+			for j := 0; j < 10000; j++ {
 				iterKey := iterRandVals.Int31()
 				iterVal := iterRandVals.Int31()
 
@@ -215,7 +196,7 @@ func TestLargeishDataset(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 10; i++ {
 		// Testing with different hash seed values but with the same set of
 		// values to produce different map structures
 		_comparableSeed = maphash.MakeSeed()

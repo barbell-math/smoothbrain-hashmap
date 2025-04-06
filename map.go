@@ -3,6 +3,8 @@ package sbmap
 
 import (
 	"hash/maphash"
+	"math/bits"
+	"reflect"
 
 	slotprobes "github.com/barbell-math/smoothbrain-hashmap/slotProbes"
 )
@@ -46,14 +48,6 @@ var (
 	_sliceGrowthFactor = 1
 )
 
-// TODO - delete these once simd slot ops are working
-func (g *group[K, V]) Used(idx int) bool {
-	return g.flags[idx]&slotprobes.Used != 0
-}
-func (g *group[K, V]) Deleted(idx int) bool {
-	return g.flags[idx]&slotprobes.Deleted != 0
-}
-
 // An equality function that can be passed to [NewCustom] when using a
 // comparable type. If the key type is comparable then you can simply use [New]
 // instead of [NewCustom] and this function will be Used by default.
@@ -64,33 +58,55 @@ func ComparableEqual[T comparable](l T, r T) bool {
 // A hash function that can be passed to [NewCustom] when using a comparable
 // type. If the key type is comparable then you can simply use [New] instead of
 // [NewCustom] and this function will be Used by default.
-func ComparableHash[T comparable](v T) uint64 {
+func ComparableHash[T comparable]() func(v T) uint64 {
 	// For speed if the underlying type is an int then just return the int
 	// value as the hasm. This might be less evenly distributed but is much
 	// faster than the maphasm.Comparable funciton.
-	switch any(v).(type) {
-	case int:
-		return uint64(any(v).(int))
-	case int8:
-		return uint64(any(v).(int8))
-	case int16:
-		return uint64(any(v).(int16))
-	case int32:
-		return uint64(any(v).(int32))
-	case int64:
-		return uint64(any(v).(int64))
-	case uint:
-		return uint64(any(v).(uint))
-	case uint8:
-		return uint64(any(v).(uint8))
-	case uint16:
-		return uint64(any(v).(uint16))
-	case uint32:
-		return uint64(any(v).(uint32))
-	case uint64:
-		return uint64(any(v).(uint64))
+	switch reflect.TypeFor[T]().Kind() {
+	case reflect.Int:
+		return func(v T) uint64 {
+			return uint64(any(v).(int))
+		}
+	case reflect.Int8:
+		return func(v T) uint64 {
+			return uint64(any(v).(int8))
+		}
+	case reflect.Int16:
+		return func(v T) uint64 {
+			return uint64(any(v).(int16))
+		}
+	case reflect.Int32:
+		return func(v T) uint64 {
+			return uint64(any(v).(int32))
+		}
+	case reflect.Int64:
+		return func(v T) uint64 {
+			return uint64(any(v).(int64))
+		}
+	case reflect.Uint:
+		return func(v T) uint64 {
+			return uint64(any(v).(uint))
+		}
+	case reflect.Uint8:
+		return func(v T) uint64 {
+			return uint64(any(v).(uint8))
+		}
+	case reflect.Uint16:
+		return func(v T) uint64 {
+			return uint64(any(v).(uint16))
+		}
+	case reflect.Uint32:
+		return func(v T) uint64 {
+			return uint64(any(v).(uint32))
+		}
+	case reflect.Uint64:
+		return func(v T) uint64 {
+			return uint64(any(v).(uint64))
+		}
 	default:
-		return maphash.Comparable(_comparableSeed, v)
+		return func(v T) uint64 {
+			return maphash.Comparable(_comparableSeed, v)
+		}
 	}
 }
 
@@ -103,7 +119,7 @@ func New[K comparable, V comparable]() Map[K, V] {
 		groups: make([]group[K, V], _defaultInitialCap, _defaultInitialCap),
 		len:    0,
 		eq:     ComparableEqual[K],
-		hash:   ComparableHash[K],
+		hash:   ComparableHash[K](),
 	}
 }
 
@@ -116,7 +132,7 @@ func NewCap[K comparable, V comparable](_cap int) Map[K, V] {
 		groups: make([]group[K, V], _cap, _cap),
 		len:    0,
 		eq:     ComparableEqual[K],
-		hash:   ComparableHash[K],
+		hash:   ComparableHash[K](),
 	}
 }
 
@@ -173,24 +189,30 @@ func (m *Map[K, V]) Get(k K) (V, bool) {
 
 	for i := uint64(1); ; i++ {
 
-		potentialMatches, emptySlots := slotprobes.GetSlotProbe(
+		potentialMatches, emptySlots := slotprobes.SlotProbe(
 			slotHash,
 			m.groups[groupHash].flags,
 			m.groups[groupHash].slotKeys,
 		)
 
-		// Potential matches bit field will be 0 when no slots matched
-		// Empty slots bit field will be 0 when no slots are empty
-		for j := 0; (potentialMatches > 0 || emptySlots > 0) && j < slotprobes.GroupSize; j++ {
-			if emptySlots&0b1 == 1 {
-				var tmp V
-				return tmp, false
-			}
-			if potentialMatches&0b1 == 1 && m.eq(m.groups[groupHash].slots[j].key, k) {
+		for j := 0; potentialMatches > 0; {
+			tz := bits.TrailingZeros(uint(potentialMatches))
+			potentialMatches >>= tz
+			emptySlots >>= tz
+			j += tz
+
+			if m.eq(m.groups[groupHash].slots[j].key, k) {
 				return m.groups[groupHash].slots[j].value, true
 			}
 			potentialMatches = potentialMatches >> 1
 			emptySlots = emptySlots >> 1
+			j++
+		}
+		// There should never be a potential match after an empty slot
+		// Meaning, if there is any remaining empty slots, the value was not found
+		if emptySlots > 0 {
+			var tmp V
+			return tmp, false
 		}
 
 		// for i, slotKey := range m.groups[groupHash].slotKeys {
@@ -218,7 +240,7 @@ func (m *Map[K, V]) Put(k K, v V) {
 	// 	len/cap *100 >= _growFactor
 	// Except dividing ints is bad, we want more precision. So remove the
 	// division and we get this:
-	if m.len*100 >= _growFactor*cap(m.groups)*slotprobes.GroupSize {
+	if m.len*100 >= _growFactor*len(m.groups)*slotprobes.GroupSize {
 		m.rehash(cap(m.groups) << _sliceGrowthFactor)
 	}
 
@@ -229,31 +251,71 @@ func (m *Map[K, V]) Put(k K, v V) {
 
 	for i := uint64(1); ; i++ {
 
-		// for j := len(m.groups[groupHash].slotKeys) - 1; j >= 0; j-- {
-		for j := 0; j < len(m.groups[groupHash].slotKeys); j++ {
-			slotKey := m.groups[groupHash].slotKeys[j]
-			if !m.groups[groupHash].Used(j) {
+		potentialMatches, emptySlots := slotprobes.SlotProbe(
+			slotHash,
+			m.groups[groupHash].flags,
+			m.groups[groupHash].slotKeys,
+		)
+
+		// Potential matches bit field will be 0 when no slots matched
+		// Empty slots bit field will be 0 when no slots are empty
+		for j := 0; potentialMatches > 0 || emptySlots > 0; {
+			tz := min(
+				bits.TrailingZeros(uint(potentialMatches)),
+				bits.TrailingZeros(uint(emptySlots)),
+			)
+			potentialMatches >>= tz
+			emptySlots >>= tz
+			j += tz
+
+			if emptySlots&0b1 == 1 {
 				m.groups[groupHash].slots[j] = slot[K, V]{key: k, value: v}
 				m.groups[groupHash].slotKeys[j] = slotHash
 				m.groups[groupHash].flags[j] |= slotprobes.Used
 				m.len++
 				return
 			}
-			if slotHash == slotKey {
-				iterSlot := &m.groups[groupHash].slots[j]
-				if m.eq(iterSlot.key, k) {
-					iterSlot.value = v
-					if m.groups[groupHash].Deleted(j) {
-						m.groups[groupHash].flags[j] &= ^slotprobes.Deleted
-						m.del--
-					}
-					return
-				}
+			if potentialMatches&0b1 == 1 && m.eq(m.groups[groupHash].slots[j].key, k) {
+				m.groups[groupHash].slots[j].value = v
+				m.del -= int((m.groups[groupHash].flags[j] & slotprobes.Deleted) >> 1)
+				m.del--
+				return
 			}
+			potentialMatches = potentialMatches >> 1
+			emptySlots = emptySlots >> 1
+			j++
 		}
 
 		groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
 	}
+
+	// for i := uint64(1); ; i++ {
+
+	// 	// for j := len(m.groups[groupHash].slotKeys) - 1; j >= 0; j-- {
+	// 	for j := 0; j < len(m.groups[groupHash].slotKeys); j++ {
+	// 		slotKey := m.groups[groupHash].slotKeys[j]
+	// 		if !m.groups[groupHash].Used(j) {
+	// 			m.groups[groupHash].slots[j] = slot[K, V]{key: k, value: v}
+	// 			m.groups[groupHash].slotKeys[j] = slotHash
+	// 			m.groups[groupHash].flags[j] |= slotprobes.Used
+	// 			m.len++
+	// 			return
+	// 		}
+	// 		if slotHash == slotKey {
+	// 			iterSlot := &m.groups[groupHash].slots[j]
+	// 			if m.eq(iterSlot.key, k) {
+	// 				iterSlot.value = v
+	// 				if m.groups[groupHash].Deleted(j) {
+	// 					m.groups[groupHash].flags[j] &= ^slotprobes.Deleted
+	// 					m.del--
+	// 				}
+	// 				return
+	// 			}
+	// 		}
+	// 	}
+
+	// 	groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
+	// }
 }
 
 func (m *Map[K, V]) rehash(newCap int) {
@@ -264,10 +326,10 @@ func (m *Map[K, V]) rehash(newCap int) {
 		hash:   m.hash,
 	}
 
-	for _, group := range m.groups {
-		for i, slot := range group.slots {
-			if group.Used(i) && !group.Deleted(i) {
-				newHMap.Put(slot.key, slot.value)
+	for i, _ := range m.groups {
+		for j, _ := range m.groups[i].slots {
+			if m.groups[i].flags[j]&(slotprobes.Used|slotprobes.Deleted) == 0b1 {
+				newHMap.Put(m.groups[i].slots[j].key, m.groups[i].slots[j].value)
 			}
 		}
 	}
@@ -284,22 +346,51 @@ func (m *Map[K, V]) Remove(k K) {
 	doubleHash := m.doubleHash(groupHash)
 
 	for i := uint64(1); ; i++ {
+		potentialMatches, emptySlots := slotprobes.SlotProbe(
+			slotHash,
+			m.groups[groupHash].flags,
+			m.groups[groupHash].slotKeys,
+		)
 
-		// for j := len(m.groups[groupHash].slotKeys) - 1; j >= 0; j-- {
-		for j := 0; j < len(m.groups[groupHash].slotKeys); j++ {
-			slotKey := m.groups[groupHash].slotKeys[j]
-			if !m.groups[groupHash].Used(j) {
+		// Potential matches bit field will be 0 when no slots matched
+		// Empty slots bit field will be 0 when no slots are empty
+		for j := 0; potentialMatches > 0 || emptySlots > 0; {
+			tz := min(
+				bits.TrailingZeros(uint(potentialMatches)),
+				bits.TrailingZeros(uint(emptySlots)),
+			)
+			potentialMatches >>= tz
+			emptySlots >>= tz
+			j += tz
+
+			if emptySlots&0b1 == 1 {
 				goto end
 			}
-			if slotHash == slotKey {
-				iterSlot := &m.groups[groupHash].slots[j]
-				if !m.groups[groupHash].Deleted(j) && m.eq(iterSlot.key, k) {
-					m.groups[groupHash].flags[j] |= slotprobes.Deleted
-					m.del++
-					goto end
-				}
+			if potentialMatches&0b1 == 1 && m.eq(m.groups[groupHash].slots[j].key, k) {
+				m.del += int(((^m.groups[groupHash].flags[j]) & slotprobes.Deleted) >> 1)
+				m.groups[groupHash].flags[j] |= slotprobes.Deleted
+				goto end
 			}
+			potentialMatches = potentialMatches >> 1
+			emptySlots = emptySlots >> 1
+			j++
 		}
+
+		// // for j := len(m.groups[groupHash].slotKeys) - 1; j >= 0; j-- {
+		// for j := 0; j < len(m.groups[groupHash].slotKeys); j++ {
+		// 	slotKey := m.groups[groupHash].slotKeys[j]
+		// 	if !m.groups[groupHash].Used(j) {
+		// 		goto end
+		// 	}
+		// 	if slotHash == slotKey {
+		// 		iterSlot := &m.groups[groupHash].slots[j]
+		// 		if !m.groups[groupHash].Deleted(j) && m.eq(iterSlot.key, k) {
+		// 			m.groups[groupHash].flags[j] |= slotprobes.Deleted
+		// 			m.del++
+		// 			goto end
+		// 		}
+		// 	}
+		// }
 
 		groupHash = m.clampedGroupHash(groupHash + i*doubleHash)
 	}
@@ -319,7 +410,8 @@ end:
 func (m *Map[K, V]) Clear() {
 	for i, group := range m.groups {
 		for j, _ := range group.slots {
-			if group.Used(j) && !group.Deleted(j) {
+			if group.flags[j]&(slotprobes.Used|slotprobes.Deleted) == 0b1 {
+				// if group.Used(j) && !group.Deleted(j) {
 				m.groups[i].slots[j] = slot[K, V]{}
 			}
 		}

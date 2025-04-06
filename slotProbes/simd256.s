@@ -21,10 +21,13 @@
 //  +65 through +71		allignment padding
 //  +72 through +75		potentialValues 	return value
 //  +76 through +79		isEmpty 			return value
-TEXT ·GetSlotProbe(SB),NOSPLIT,$0
+TEXT ·SlotProbe(SB),NOSPLIT,$0
 	MOVQ 			Used, R8				// load the used constant into reg
 	VPBROADCASTB	R8, Y0					// broadcast used flag
 	VMOVDQU8 		flags+1(FP), Y1			// load the flags into y reg
+	MOVQ 			Deleted, R9				// load the deleted constant into reg
+	VPBROADCASTB	R9, Y3					// broadcast deleted flag
+
 	VPAND			Y0, Y1, Y2				// used & flags
 	VPCMPEQB        Y0, Y2, Y2				// (used & flags) == used
 	VEXTRACTI128	$1, Y2, X0				// Get the upper half of (used & flags) == used
@@ -37,11 +40,8 @@ TEXT ·GetSlotProbe(SB),NOSPLIT,$0
 	ADDQ			R8, R12					// cpy register
 	NOTQ			R12						// inverse of (used & flags) == used
 
-	MOVQ 			Deleted, R9				// load the deleted constant into reg
-	VPBROADCASTB	R9, Y0					// broadcast deleted flag
-	VMOVDQU8 		flags+1(FP), Y1			// load the flags into y reg
-	VPAND			Y0, Y1, Y2				// deleted & flags
-	VPCMPEQB        Y0, Y2, Y2				// (deleted & flags) == deleted
+	VPAND			Y3, Y1, Y2				// deleted & flags
+	VPCMPEQB        Y3, Y2, Y2				// (deleted & flags) == deleted
 	VEXTRACTI128	$1, Y2, X0				// Get the upper half of (deleted & flags) == deleted
 	PMOVMSKB		X0, R9					// store the sign flags in reg
 	SHLQ			$16, R9					// shift bits to left half of reg

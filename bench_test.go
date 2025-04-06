@@ -18,7 +18,7 @@ func BenchmarkGetSlotProbe(b *testing.B) {
 	}
 
 	for b.Loop() {
-		_, _ = slotprobes.GetSlotProbe(3, flags, slotKeys)
+		_, _ = slotprobes.SlotProbe(3, flags, slotKeys)
 	}
 }
 
@@ -76,7 +76,7 @@ func BenchmarkDifferentGrowthFactors(b *testing.B) {
 	})
 }
 
-func BenchmarkAgainstMapInsertOnly(b *testing.B) {
+func BenchmarkAgainstMapPutOnly(b *testing.B) {
 	customMapOp := func(size int) {
 		h := New[int32, int64]()
 		randVals := rand.New(rand.NewSource(3))
@@ -141,6 +141,18 @@ func BenchmarkAgainstMapInsertOnly(b *testing.B) {
 			}
 		})
 	})
+	b.Run("1e7 elements", func(b *testing.B) {
+		b.Run("Custom Map", func(b *testing.B) {
+			for b.Loop() {
+				customMapOp(1e7)
+			}
+		})
+		b.Run("Builtin Map", func(b *testing.B) {
+			for b.Loop() {
+				builtinMapOp(1e7)
+			}
+		})
+	})
 }
 
 func BenchmarkAgainstMapGetOnly(b *testing.B) {
@@ -180,7 +192,7 @@ func BenchmarkAgainstMapGetOnly(b *testing.B) {
 		}
 	}
 
-	_growFactor = 50
+	_growFactor = 65
 	b.Run("1e2 elements", func(b *testing.B) {
 		customHashMap := buildCustomHashMap(1e2)
 		builtinMap := buildBuiltinMap(1e2)
@@ -226,6 +238,20 @@ func BenchmarkAgainstMapGetOnly(b *testing.B) {
 	b.Run("1e6 elements", func(b *testing.B) {
 		customHashMap := buildCustomHashMap(1e6)
 		builtinMap := buildBuiltinMap(1e6)
+		b.Run("Custom Map", func(b *testing.B) {
+			for b.Loop() {
+				customMapOp(&customHashMap)
+			}
+		})
+		b.Run("Builtin Map", func(b *testing.B) {
+			for b.Loop() {
+				builtinMapOp(builtinMap)
+			}
+		})
+	})
+	b.Run("1e7 elements", func(b *testing.B) {
+		customHashMap := buildCustomHashMap(1e7)
+		builtinMap := buildBuiltinMap(1e7)
 		b.Run("Custom Map", func(b *testing.B) {
 			for b.Loop() {
 				customMapOp(&customHashMap)
