@@ -15,17 +15,17 @@
 // ) (potentialValues uint32, isEmpty uint32)
 //
 // memory layout of the stack relative to FP
-//  +0   				key
-//  +1  through +32 	flags
-//  +33 through +64		slotKeys
-//  +65 through +71		allignment padding
+//  +0   				key					argument
+//  +1  through +32 	flags				argument
+//  +33 through +64		slotKeys			argument
+//  +65 through +71		-					allignment padding
 //  +72 through +75		potentialValues 	return value
 //  +76 through +79		isEmpty 			return value
 TEXT ·SlotProbe(SB),NOSPLIT,$0
-	MOVQ 			Used, R8				// load the used constant into reg
+	MOVB 			Used, R8				// load the used constant into reg
 	VPBROADCASTB	R8, Y0					// broadcast used flag
 	VMOVDQU8 		flags+1(FP), Y1			// load the flags into y reg
-	MOVQ 			Deleted, R9				// load the deleted constant into reg
+	MOVB 			Deleted, R9				// load the deleted constant into reg
 	VPBROADCASTB	R9, Y3					// broadcast deleted flag
 
 	VPAND			Y0, Y1, Y2				// used & flags
