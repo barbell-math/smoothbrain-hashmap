@@ -107,7 +107,7 @@ Keys:
 ## Index
 
 - [func ComparableEqual\[T comparable\]\(l T, r T\) bool](<#ComparableEqual>)
-- [func ComparableHash\[T comparable\]\(v T\) uint64](<#ComparableHash>)
+- [func ComparableHash\[T comparable\]\(\) func\(v T\) uint64](<#ComparableHash>)
 - [type Map](<#Map>)
   - [func New\[K comparable, V comparable\]\(\) Map\[K, V\]](<#New>)
   - [func NewCap\[K comparable, V comparable\]\(\_cap int\) Map\[K, V\]](<#NewCap>)
@@ -125,25 +125,25 @@ Keys:
 
 
 <a name="ComparableEqual"></a>
-## func [ComparableEqual](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L58>)
+## func [ComparableEqual](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L52>)
 
 ```go
 func ComparableEqual[T comparable](l T, r T) bool
 ```
 
-An equality function that can be passed to [NewCustom](<#NewCustom>) when using a comparable type. If the key type is comparable then you can simply use [New](<#New>) instead of [NewCustom](<#NewCustom>) and this function will be used by default.
+An equality function that can be passed to [NewCustom](<#NewCustom>) when using a comparable type. If the key type is comparable then you can simply use [New](<#New>) instead of [NewCustom](<#NewCustom>) and this function will be Used by default.
 
 <a name="ComparableHash"></a>
-## func [ComparableHash](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L65>)
+## func [ComparableHash](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L59>)
 
 ```go
-func ComparableHash[T comparable](v T) uint64
+func ComparableHash[T comparable]() func(v T) uint64
 ```
 
-A hash function that can be passed to [NewCustom](<#NewCustom>) when using a comparable type. If the key type is comparable then you can simply use [New](<#New>) instead of [NewCustom](<#NewCustom>) and this function will be used by default.
+A hash function that can be passed to [NewCustom](<#NewCustom>) when using a comparable type. If the key type is comparable then you can simply use [New](<#New>) instead of [NewCustom](<#NewCustom>) and this function will be Used by default.
 
 <a name="Map"></a>
-## type [Map](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L16-L22>)
+## type [Map](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L25-L31>)
 
 
 
@@ -154,34 +154,34 @@ type Map[K any, V any] struct {
 ```
 
 <a name="New"></a>
-### func [New](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L99>)
+### func [New](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L115>)
 
 ```go
 func New[K comparable, V comparable]() Map[K, V]
 ```
 
-Creates a Map where K is the key type and V is the value type. [ComparableEqual](<#ComparableEqual>) and [ComparableHash](<#ComparableHash>) funcitons will be used by the returned Map. For creating a Map with non\-comparable types or custom hash and equality functions refer to [NewCustom](<#NewCustom>).
+Creates a Map where K is the key type and V is the value type. [ComparableEqual](<#ComparableEqual>) and [ComparableHash](<#ComparableHash>) functions will be Used by the returned Map. For creating a Map with non\-comparable types or custom hash and equality functions refer to [NewCustom](<#NewCustom>).
 
 <a name="NewCap"></a>
-### func [NewCap](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L112>)
+### func [NewCap](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L128>)
 
 ```go
 func NewCap[K comparable, V comparable](_cap int) Map[K, V]
 ```
 
-Creates a Map where K is the key type and V is the value type with a capacity of \`\_cap\`. [ComparableEqual](<#ComparableEqual>) and [ComparableHash](<#ComparableHash>) functions will be used by the returned Map. For creating a Map with non\-comparable types or custom hash and equality functions refer to [NewCustom](<#NewCustom>).
+Creates a Map where K is the key type and V is the value type with a capacity of \`\_cap\`. [ComparableEqual](<#ComparableEqual>) and [ComparableHash](<#ComparableHash>) functions will be Used by the returned Map. For creating a Map with non\-comparable types or custom hash and equality functions refer to [NewCustom](<#NewCustom>).
 
 <a name="NewCustom"></a>
-### func [NewCustom](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L125-L129>)
+### func [NewCustom](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L141-L145>)
 
 ```go
 func NewCustom[K any, V any](_cap int, eq func(l K, r K) bool, hash func(v K) uint64) Map[K, V]
 ```
 
-Creates a Map where K is the key type and V is the value type with a capacity of \`\_cap\`. The supplied \`eq\` and \`hash\` functions will be used by the Map. If two values are equal the \`hash\` function hash function should return the same hash for both values.
+Creates a Map where K is the key type and V is the value type with a capacity of \`\_cap\`. The supplied \`eq\` and \`hash\` functions will be Used by the Map. If two values are equal the \`hash\` function hash function should return the same hash for both values.
 
 <a name="Map[K, V].Clear"></a>
-### func \(\*Map\[K, V\]\) [Clear](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L260>)
+### func \(\*Map\[K, V\]\) [Clear](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L351>)
 
 ```go
 func (m *Map[K, V]) Clear()
@@ -190,7 +190,7 @@ func (m *Map[K, V]) Clear()
 Removes all values from the underlying hash but keeps the maps underlying capacity.
 
 <a name="Map[K, V].Copy"></a>
-### func \(\*Map\[K, V\]\) [Copy](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L277>)
+### func \(\*Map\[K, V\]\) [Copy](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L371>)
 
 ```go
 func (m *Map[K, V]) Copy() *Map[K, V]
@@ -199,7 +199,7 @@ func (m *Map[K, V]) Copy() *Map[K, V]
 Creates a copy of the supplied hash map. All values will be copied using memcpy, meaning a shallow copy will be made of the values.
 
 <a name="Map[K, V].Get"></a>
-### func \(\*Map\[K, V\]\) [Get](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L160>)
+### func \(\*Map\[K, V\]\) [Get](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L183>)
 
 ```go
 func (m *Map[K, V]) Get(k K) (V, bool)
@@ -208,16 +208,16 @@ func (m *Map[K, V]) Get(k K) (V, bool)
 Gets the value that is related to the supplied key. If the key is found the boolean return value will be true and the value will be returned. If the key is not found the boolean return value will be false and a zero\-initialized value of type V will be returned.
 
 <a name="Map[K, V].Keys"></a>
-### func \(\*Map\[K, V\]\) [Keys](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L291>)
+### func \(\*Map\[K, V\]\) [Keys](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L391>)
 
 ```go
 func (m *Map[K, V]) Keys() iter.Seq[K]
 ```
 
-Iterates over all of the keys in the map. Uses the stdlib \`iter\` package so this function can be used in a standard \`for\` loop.
+Iterates over all of the keys in the map. Uses the stdlib \`iter\` package so this function can be Used in a standard \`for\` loop.
 
 <a name="Map[K, V].Len"></a>
-### func \(\*Map\[K, V\]\) [Len](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L140>)
+### func \(\*Map\[K, V\]\) [Len](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L156>)
 
 ```go
 func (m *Map[K, V]) Len() int
@@ -226,25 +226,25 @@ func (m *Map[K, V]) Len() int
 Returns the number of elements in the hash map. This is different than the maps capacity.
 
 <a name="Map[K, V].PntrVals"></a>
-### func \(\*Map\[K, V\]\) [PntrVals](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L322>)
+### func \(\*Map\[K, V\]\) [PntrVals](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L422>)
 
 ```go
 func (m *Map[K, V]) PntrVals() iter.Seq[*V]
 ```
 
-Iterates over all of the values in the map. Uses the stdlib \`iter\` package so this function can be used in a standard \`for\` loop. The value may be mutated and the results will be seen by the hash map.
+Iterates over all of the values in the map. Uses the stdlib \`iter\` package so this function can be Used in a standard \`for\` loop. The value may be mutated and the results will be seen by the hash map.
 
 <a name="Map[K, V].Put"></a>
-### func \(\*Map\[K, V\]\) [Put](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L181>)
+### func \(\*Map\[K, V\]\) [Put](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L224>)
 
 ```go
 func (m *Map[K, V]) Put(k K, v V)
 ```
 
-Places the supplied key, value pair in the hash map. If the key was already present in the map the old value will be overwritten. The map will resize as necessary.
+Places the supplied key, value pair in the hash map. If the key was already present in the map the old value will be overwritten. The map will rehash as necessary.
 
 <a name="Map[K, V].Remove"></a>
-### func \(\*Map\[K, V\]\) [Remove](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L232>)
+### func \(\*Map\[K, V\]\) [Remove](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L299>)
 
 ```go
 func (m *Map[K, V]) Remove(k K)
@@ -253,21 +253,21 @@ func (m *Map[K, V]) Remove(k K)
 Removes the supplied key and associated value from the hash map if it is present. If the key is not present in the map then no action will be taken.
 
 <a name="Map[K, V].Vals"></a>
-### func \(\*Map\[K, V\]\) [Vals](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L306>)
+### func \(\*Map\[K, V\]\) [Vals](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L406>)
 
 ```go
 func (m *Map[K, V]) Vals() iter.Seq[V]
 ```
 
-Iterates over all of the values in the map. Uses the stdlib \`iter\` package so this function can be used in a standard \`for\` loop.
+Iterates over all of the values in the map. Uses the stdlib \`iter\` package so this function can be Used in a standard \`for\` loop.
 
 <a name="Map[K, V].Zero"></a>
-### func \(\*Map\[K, V\]\) [Zero](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L270>)
+### func \(\*Map\[K, V\]\) [Zero](<https://github.com/barbell-math/smoothbrain-hashmap/blob/main/map.go#L364>)
 
 ```go
 func (m *Map[K, V]) Zero()
 ```
 
-Removes all values from the underlying hash and resets the maps capacity.
+Removes all values from the underlying hash and resets the maps capacity to the default initial capacity.
 
 Generated by [gomarkdoc](<https://github.com/princjef/gomarkdoc>)

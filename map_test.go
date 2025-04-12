@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"runtime/pprof"
+	"slices"
 	"testing"
 
 	sbtest "github.com/barbell-math/smoothbrain-test"
@@ -112,46 +113,74 @@ func TestHashMapZero(t *testing.T) {
 	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
 }
 
-//	func TestGrowAndShrinkFactors(t *testing.T) {
-//		origGrowFactor := _growFactor
-//		origShrinkFactor := _shrinkFactor
-//		origDefaultInitialCap := _defaultInitialCap
-//		t.Cleanup(func() {
-//			_growFactor = origGrowFactor
-//			_shrinkFactor = origShrinkFactor
-//			_defaultInitialCap = origDefaultInitialCap
-//		})
-//
-//		_growFactor = 50
-//		_shrinkFactor = 50
-//		_defaultInitialCap = 4
-//		h := New[int8, int16]()
-//
-//		h.Put(1, 1)
-//		sbtest.Eq(t, 1, h.Len())
-//		sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
-//		h.Put(2, 2)
-//		sbtest.Eq(t, 2, h.Len())
-//		sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
-//
-//		h.Put(3, 3)
-//		sbtest.Eq(t, 3, h.Len())
-//		sbtest.Eq(t, _defaultInitialCap*2, cap(h.groups))
-//
-//		h.Remove(3)
-//		sbtest.Eq(t, 2, h.Len())
-//		sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
-//
-//		val, ok := h.Get(1)
-//		sbtest.True(t, ok)
-//		sbtest.Eq(t, 1, val)
-//		val, ok = h.Get(2)
-//		sbtest.True(t, ok)
-//		sbtest.Eq(t, 2, val)
-//		val, ok = h.Get(3)
-//		sbtest.False(t, ok)
-//		sbtest.Eq(t, 0, val)
-//	}
+func TestCopy(t *testing.T) {
+	h := New[int8, int16]()
+
+	h.Put(1, 1)
+	h.Put(2, 2)
+	h.Put(3, 3)
+	sbtest.Eq(t, 3, h.Len())
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+
+	h2 := h.Copy()
+	sbtest.Eq(t, 3, h2.Len())
+	sbtest.Eq(t, _defaultInitialCap, cap(h2.groups))
+
+	val, ok := h2.Get(1)
+	sbtest.True(t, ok)
+	sbtest.Eq(t, 1, val)
+	val, ok = h2.Get(2)
+	sbtest.True(t, ok)
+	sbtest.Eq(t, 2, val)
+	val, ok = h2.Get(3)
+	sbtest.True(t, ok)
+	sbtest.Eq(t, 3, val)
+}
+
+func TestKeys(t *testing.T) {
+	h := New[int8, int16]()
+
+	h.Put(1, 1)
+	h.Put(2, 2)
+	h.Put(3, 3)
+	sbtest.Eq(t, 3, h.Len())
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+
+	keys := slices.Collect(h.Keys())
+	sbtest.SlicesMatchUnordered(t, []int8{1, 2, 3}, keys)
+}
+
+func TestValues(t *testing.T) {
+	h := New[int8, int16]()
+
+	h.Put(1, 1)
+	h.Put(2, 2)
+	h.Put(3, 3)
+	sbtest.Eq(t, 3, h.Len())
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+
+	vals := slices.Collect(h.Vals())
+	sbtest.SlicesMatchUnordered(t, []int16{1, 2, 3}, vals)
+}
+
+func TestValuesPntrs(t *testing.T) {
+	h := New[int8, int16]()
+
+	h.Put(1, 1)
+	h.Put(2, 2)
+	h.Put(3, 3)
+	sbtest.Eq(t, 3, h.Len())
+	sbtest.Eq(t, _defaultInitialCap, cap(h.groups))
+
+	vals := []int16{0, 0, 0}
+	i := 0
+	for v := range h.PntrVals() {
+		vals[i] = *v
+		i++
+	}
+	sbtest.SlicesMatchUnordered(t, []int16{1, 2, 3}, vals)
+}
+
 func TestLargeishDataset(t *testing.T) {
 	f, err := os.Create("testProf.prof")
 	if err != nil {
