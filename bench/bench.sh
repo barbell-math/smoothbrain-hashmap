@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# TODO - replace this crap with bs
 echo "Default Implementation"
 go test -bench=. -benchmem ./...
 
