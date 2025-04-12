@@ -1,4 +1,4 @@
-//go:build simd512
+//go:build sbmap_simd512
 
 package slotprobes
 
@@ -6,8 +6,8 @@ const (
 	GroupSize = 64
 )
 
-func GetSlotProbe(
-	key int8,
-	flags [GroupSize]int8,
-	slotKeys [GroupSize]int8,
-) [GroupSize]int8
+func SlotProbe(
+	key uint8,
+	flags [GroupSize]uint8,
+	slotKeys [GroupSize]uint8,
+) (potentialValues uint64, isEmpty uint64)

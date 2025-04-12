@@ -1,4 +1,4 @@
-//go:build !simd512 && !simd256 && !simd128
+//go:build !sbmap_simd512 && !sbmap_simd256 && !sbmap_simd128
 
 package slotprobes
 

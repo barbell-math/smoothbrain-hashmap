@@ -1,4 +1,4 @@
-//go:build simd128
+//go:build sbmap_simd128
 
 package slotprobes
 

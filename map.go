@@ -34,16 +34,13 @@ var (
 	_comparableSeed = maphash.MakeSeed()
 	// The default initial capacity that will be used if no capacity or zero
 	// capacity is supplied
-	_defaultInitialCap = max(1, slotprobes.GroupSize/64)
+	_defaultInitialCap = max(1, 64/slotprobes.GroupSize)
 	// A value between 0 and 100 that determines how full the map can get before
 	// the hash map doubles the underlying slice.
 	_growFactor = 50
 	// A value between 0 and 100 that determines how empty the map can get
 	// before the hash map halves the underlying slice.
 	_shrinkFactor = 25
-	// A value between 1 and 100 that determines what percentage of 'Deleted'
-	// entries there can be before the map gets rehashed.
-	_rehashFactor = 25
 	// The power of two to use when increasing the backing slices capacity.
 	_sliceGrowthFactor = 1
 )
@@ -60,8 +57,8 @@ func ComparableEqual[T comparable](l T, r T) bool {
 // [NewCustom] and this function will be Used by default.
 func ComparableHash[T comparable]() func(v T) uint64 {
 	// For speed if the underlying type is an int then just return the int
-	// value as the hasm. This might be less evenly distributed but is much
-	// faster than the maphasm.Comparable funciton.
+	// value as the hash. This might be less evenly distributed but is much
+	// faster than the [maphash.Comparable] function.
 	switch reflect.TypeFor[T]().Kind() {
 	case reflect.Int:
 		return func(v T) uint64 {
@@ -111,7 +108,7 @@ func ComparableHash[T comparable]() func(v T) uint64 {
 }
 
 // Creates a Map where K is the key type and V is the value type.
-// [ComparableEqual] and [ComparableHash] funcitons will be Used by the returned
+// [ComparableEqual] and [ComparableHash] functions will be Used by the returned
 // Map. For creating a Map with non-comparable types or custom hash and equality
 // functions refer to [NewCustom].
 func New[K comparable, V comparable]() Map[K, V] {

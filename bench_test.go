@@ -92,7 +92,7 @@ func BenchmarkAgainstMapPutOnly(b *testing.B) {
 		}
 	}
 
-	_growFactor = 50
+	_growFactor = 75
 	b.Run("1e2 elements", func(b *testing.B) {
 		b.Run("Custom Map", func(b *testing.B) {
 			for b.Loop() {
@@ -192,7 +192,7 @@ func BenchmarkAgainstMapGetOnly(b *testing.B) {
 		}
 	}
 
-	_growFactor = 65
+	_growFactor = 75
 	b.Run("1e2 elements", func(b *testing.B) {
 		customHashMap := buildCustomHashMap(1e2)
 		builtinMap := buildBuiltinMap(1e2)
@@ -289,7 +289,6 @@ func BenchmarkAgainstMapRemoveOnly(b *testing.B) {
 			randVal := randVals.Int31()
 			m.Remove(randVal)
 		}
-		// fmt.Println("Max collision: ", m.maxChain)
 	}
 	builtinMapOp := func(m map[int32]int64) {
 		randVals := rand.New(rand.NewSource(3))
@@ -299,7 +298,7 @@ func BenchmarkAgainstMapRemoveOnly(b *testing.B) {
 		}
 	}
 
-	_growFactor = 50
+	_growFactor = 75
 	b.Run("1e2 elements", func(b *testing.B) {
 		customHashMap := buildCustomHashMap(1e2)
 		builtinMap := buildBuiltinMap(1e2)

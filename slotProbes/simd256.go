@@ -1,4 +1,4 @@
-//go:build simd256
+//go:build sbmap_simd256
 
 package slotprobes
 
