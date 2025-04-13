@@ -337,6 +337,14 @@ gdb smoothbrain-hashmap.test
 > breakpoints is not as easy but, it can see the xmm/ymm/zmm registers. Pick
 > your poison.
 
+By default running the `LargishDataset` unit test will run profiling and will
+produce a file: `./bs/testProf.prof`. This can then be viewed using golangs
+builtin `pprof` tool:
+
+```
+go tool pprof ./bs/testProf.prof
+```
+
 ## Developer Resources
 
 Writing assembly is not a trivial task. These are some helpful resources:

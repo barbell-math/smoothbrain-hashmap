@@ -44,16 +44,13 @@ func BenchmarkBuiltinMap(b *testing.B) {
 }
 
 func BenchmarkCustomMap(b *testing.B) {
-	benchmarkDifferentGrowthFactors(
-		b,
-		benchOps[*Map[int32, int64]]{
-			SetupOp:  customMapSetup,
-			PutOp:    customMapPut,
-			GetOp:    customMapGet,
-			RemoveOp: customMapRemove,
-			MixedOp:  customMapMixedUsage,
-		},
-	)
+	benchmarkDifferentGrowthFactors(b, benchOps[*Map[int32, int64]]{
+		SetupOp:  customMapSetup,
+		PutOp:    customMapPut,
+		GetOp:    customMapGet,
+		RemoveOp: customMapRemove,
+		MixedOp:  customMapMixedUsage,
+	})
 }
 
 func benchmarkDifferentGrowthFactors[T any](b *testing.B, ops benchOps[T]) {
