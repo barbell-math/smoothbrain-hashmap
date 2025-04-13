@@ -9,7 +9,7 @@ on:
   pull_request:
 
 jobs:
-  checkDepsAreUpToDate:
+  mergeGateOps:
     name: Test on Go v${{ matrix.go_version }} and ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -25,97 +25,7 @@ jobs:
       with:
         go-version: ${{ matrix.go_version }}
 
-    - name: Run Update Cmds
+    - name: Run Ops
       run: |
-        go get -u ./...
-        go mod tidy
+        go build -o ./bs/bs ./bs && ./bs/bs mergegate all
       shell: bash
-
-    - name: Check That Eveything is Up to Date
-      run: |
-        if [[ -z "$(git diff)" ]]; then
-          echo "No changes detected"
-        else
-          echo "Changes detected!"
-          echo "Out of date changes packages detected!"
-          echo "Run 'go get -u ./...' followed by 'go mod tidy' to update all packages."
-          exit 1
-        fi
-      shell: bash
-
-  checkReadmeIsUpToDate:
-    name: Test on Go v${{ matrix.go_version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        go_version: ['1.24']
-        os: [ubuntu-latest]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go v${{ matrix.go_version }}
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go_version }}
-
-    - name: Run Update Cmds
-      run: |
-        go install github.com/princjef/gomarkdoc/cmd/gomarkdoc@latest
-        ./updateReadme.sh
-      shell: bash
-
-    - name: Check That Eveything is Up to Date
-      run: |
-        if [[ -z "$(git diff)" ]]; then
-          echo "No changes detected"
-        else
-          echo "Changes detected!"
-          echo "The README needs to be updated!"
-          echo "Run './updateReadme.sh' and commit the changes."
-          exit 1
-        fi
-      shell: bash
-
-  checkFmt:
-    name: Test on Go v${{ matrix.go_version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        go_version: ['1.21', '1.22', '1.23', '1.24']
-        os: [ubuntu-latest]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go v${{ matrix.go_version }}
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go_version }}
-
-    - name: Check Formatting
-      run: |
-        if read -r -n1 -d '' < <(go fmt ./...); then
-          echo "Fix formatting to get a passing run!"
-          exit 1
-        fi
-      shell: bash
-
-  unitTests:
-    name: Test on Go v${{ matrix.go_version }} and ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        go_version: ['1.24']
-        os: [ubuntu-latest, windows-latest, macOS-latest]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go v${{ matrix.go_version }}
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go_version }}
-
-    - name: Test
-      run: go test -v ./...
