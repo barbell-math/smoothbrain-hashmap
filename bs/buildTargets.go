@@ -13,7 +13,7 @@ func registerBuildTargets() {
 		sbbs.Stage(
 			"Run go build",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				return sbbs.RunStdout(ctxt, "go", "build", "-o", "./bs", "./bs")
+				return sbbs.RunStdout(ctxt, "go", "build", "-o", "./bs/bin", "./bs")
 			},
 		),
 	)
@@ -24,7 +24,7 @@ func registerBuildTargets() {
 		sbbs.Stage(
 			"Run go build",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				return sbbs.RunStdout(ctxt, "go", "build", "-o", "./bs", "./plots")
+				return sbbs.RunStdout(ctxt, "go", "build", "-o", "./bs/bin", "./plots")
 			},
 		),
 	)

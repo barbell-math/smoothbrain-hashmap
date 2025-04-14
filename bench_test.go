@@ -9,8 +9,13 @@ import (
 )
 
 type (
+	setupOps[T any] struct {
+		PutOp    func(size int) T
+		GetOp    func(size int) T
+		RemoveOp func(size int) T
+		MixedOp  func(size int) T
+	}
 	benchOps[T any] struct {
-		SetupOp  func(size int) T
 		PutOp    func(input T, size int)
 		GetOp    func(input T, size int)
 		RemoveOp func(input T, size int)
@@ -34,80 +39,109 @@ func BenchmarkGetSlotProbe(b *testing.B) {
 }
 
 func BenchmarkBuiltinMap(b *testing.B) {
-	benchmarkOps(b, benchOps[map[int32]int64]{
-		SetupOp:  builtinMapSetup,
-		PutOp:    builtinMapPut,
-		GetOp:    builtinMapGet,
-		RemoveOp: builtinMapRemove,
-		MixedOp:  builtinMapMixedUsage,
-	})
+	b.Run("", benchmarkOps(
+		setupOps[map[int32]int64]{
+			PutOp:    builtinMapEmptyInit,
+			GetOp:    builtinMapValInit,
+			RemoveOp: builtinMapValInit,
+			MixedOp:  builtinMapEmptyInit,
+		},
+		benchOps[map[int32]int64]{
+			PutOp:    builtinMapPut,
+			GetOp:    builtinMapGet,
+			RemoveOp: builtinMapRemove,
+			MixedOp:  builtinMapMixedUsage,
+		},
+	))
 }
 
 func BenchmarkCustomMap(b *testing.B) {
-	benchmarkDifferentGrowthFactors(b, benchOps[*Map[int32, int64]]{
-		SetupOp:  customMapSetup,
-		PutOp:    customMapPut,
-		GetOp:    customMapGet,
-		RemoveOp: customMapRemove,
-		MixedOp:  customMapMixedUsage,
-	})
+	b.Run("", benchmarkDifferentGrowthFactors(
+		setupOps[*Map[int32, int64]]{
+			PutOp:    customMapEmptyInit,
+			GetOp:    customMapValInit,
+			RemoveOp: customMapValInit,
+			MixedOp:  customMapEmptyInit,
+		},
+		benchOps[*Map[int32, int64]]{
+			PutOp:    customMapPut,
+			GetOp:    customMapGet,
+			RemoveOp: customMapRemove,
+			MixedOp:  customMapMixedUsage,
+		},
+	))
 }
 
-func benchmarkDifferentGrowthFactors[T any](b *testing.B, ops benchOps[T]) {
-	subTests := func(b *testing.B, growFactor int) {
-		origGrowthFactor := _growFactor
-		_growFactor = growFactor
-		b.Cleanup(func() {
-			_growFactor = origGrowthFactor
-		})
-		benchmarkOps(b, ops)
-	}
+func benchmarkDifferentGrowthFactors[T any](
+	setup setupOps[T],
+	ops benchOps[T],
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		subTests := func(growFactor int) func(b *testing.B) {
+			return func(b *testing.B) {
+				origGrowthFactor := _growFactor
+				_growFactor = growFactor
+				b.Cleanup(func() {
+					_growFactor = origGrowthFactor
+				})
+				b.Run("", benchmarkOps(setup, ops))
+			}
+		}
 
-	for i := 50; i < 95; i += 5 {
-		b.Run(
-			fmt.Sprintf("%d%% GrowthFactor", i),
-			func(b *testing.B) { subTests(b, i) },
-		)
+		for i := 50; i < 95; i += 5 {
+			b.Run(
+				fmt.Sprintf("%d%% GrowthFactor", i),
+				subTests(i),
+			)
+		}
 	}
 }
 
-func benchmarkOps[T any](b *testing.B, ops benchOps[T]) {
-	b.Run("Put", func(b *testing.B) {
-		benchmarkSizeRange(b, 1e2, 1e8, 10, ops.SetupOp, ops.PutOp)
-	})
-	b.Run("Get", func(b *testing.B) {
-		benchmarkSizeRange(b, 1e2, 1e8, 10, ops.SetupOp, ops.GetOp)
-	})
-	b.Run("PutAndRemove", func(b *testing.B) {
-		benchmarkSizeRange(b, 1e2, 1e8, 10, ops.SetupOp, ops.RemoveOp)
-	})
-	b.Run("Mixed", func(b *testing.B) {
-		benchmarkSizeRange(b, 1e2, 1e5, 10, ops.SetupOp, ops.MixedOp)
-	})
+func benchmarkOps[T any](setup setupOps[T], ops benchOps[T]) func(b *testing.B) {
+	return func(b *testing.B) {
+		b.Run("Put", benchmarkSizeRange(1e2, 1e8, 10, setup.PutOp, ops.PutOp))
+		b.Run("PutAndGet", benchmarkSizeRange(1e2, 1e8, 10, setup.GetOp, ops.GetOp))
+		b.Run("PutAndRemove", benchmarkSizeRange(1e2, 1e8, 10, setup.RemoveOp, ops.RemoveOp))
+		b.Run("Mixed", benchmarkSizeRange(1e2, 1e5, 10, setup.MixedOp, ops.MixedOp))
+	}
 }
 
 func benchmarkSizeRange[T any](
-	b *testing.B,
 	start int,
 	end int,
 	step int,
 	setupOp func(size int) T,
 	benchOp func(input T, size int),
-) {
-	for i := start; i < end; i *= step {
-		b.Run(
-			fmt.Sprintf("%d Elements", i),
-			func(b *testing.B) {
-				setupVal := setupOp(i)
-				for b.Loop() {
-					benchOp(setupVal, i)
-				}
-			},
-		)
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		for i := start; i < end; i *= step {
+			b.Run(
+				fmt.Sprintf("%d Elements", i),
+				func(b *testing.B) {
+					for b.Loop() {
+						// Setup in the benchmark loop :0
+						// It has to be here otherwise the reported allocs/op
+						// will always be 1. For whatever reason the allocations
+						// are only tracked in the loop.
+						setupVal := setupOp(i)
+						benchOp(setupVal, i)
+					}
+				},
+			)
+		}
 	}
 }
 
-func customMapSetup(size int) *Map[int32, int64] {
+func customMapEmptyInit(size int) *Map[int32, int64] {
+	rv := New[int32, int64]()
+	return &rv
+}
+
+func builtinMapEmptyInit(size int) map[int32]int64 {
+	return map[int32]int64{}
+}
+
+func customMapValInit(size int) *Map[int32, int64] {
 	rv := New[int32, int64]()
 	randVals := rand.New(rand.NewSource(3))
 	for i := 0; i < size; i++ {
@@ -116,7 +150,7 @@ func customMapSetup(size int) *Map[int32, int64] {
 	return &rv
 }
 
-func builtinMapSetup(size int) map[int32]int64 {
+func builtinMapValInit(size int) map[int32]int64 {
 	rv := map[int32]int64{}
 	randVals := rand.New(rand.NewSource(3))
 	for i := 0; i < size; i++ {

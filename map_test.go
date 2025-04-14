@@ -182,7 +182,7 @@ func TestValuesPntrs(t *testing.T) {
 }
 
 func TestLargeishDataset(t *testing.T) {
-	f, err := os.Create("./bs/testProf.prof")
+	f, err := os.Create("./bs/tmp/testProf.prof")
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -19,7 +19,7 @@ func registerDataCollectionAndGenerationTargets() {
 				); err != nil {
 					return err
 				}
-				return os.Rename("./bs/testProf.prof", "./bs/defaultProfile.prof")
+				return os.Rename("./bs/tmp/testProf.prof", "./bs/tmp/defaultProfile.prof")
 			},
 		),
 		sbbs.Stage(
@@ -30,7 +30,7 @@ func registerDataCollectionAndGenerationTargets() {
 				); err != nil {
 					return err
 				}
-				return os.Rename("./bs/testProf.prof", "./bs/simd128Profile.prof")
+				return os.Rename("./bs/tmp/testProf.prof", "./bs/tmp/simd128Profile.prof")
 			},
 		),
 		sbbs.Stage(
@@ -41,7 +41,7 @@ func registerDataCollectionAndGenerationTargets() {
 				); err != nil {
 					return err
 				}
-				return os.Rename("./bs/testProf.prof", "./bs/simd256Profile.prof")
+				return os.Rename("./bs/tmp/testProf.prof", "./bs/tmp/simd256Profile.prof")
 			},
 		),
 		sbbs.Stage(
@@ -52,7 +52,7 @@ func registerDataCollectionAndGenerationTargets() {
 				); err != nil {
 					return err
 				}
-				return os.Rename("./bs/testProf.prof", "./bs/simd512Profile.prof")
+				return os.Rename("./bs/tmp/testProf.prof", "./bs/tmp/simd512Profile.prof")
 			},
 		),
 	)
@@ -63,7 +63,7 @@ func registerDataCollectionAndGenerationTargets() {
 		sbbs.Stage(
 			"Run builtin bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				builtinResults, err := os.Create("./bs/builtinBenchmarks.txt")
+				builtinResults, err := os.Create("./bs/tmp/builtinBenchmarks.txt")
 				if err != nil {
 					return err
 				}
@@ -78,7 +78,7 @@ func registerDataCollectionAndGenerationTargets() {
 		sbbs.Stage(
 			"Run default bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				defaultResults, err := os.Create("./bs/defaultBenchmarks.txt")
+				defaultResults, err := os.Create("./bs/tmp/defaultBenchmarks.txt")
 				if err != nil {
 					return err
 				}
@@ -93,7 +93,7 @@ func registerDataCollectionAndGenerationTargets() {
 		sbbs.Stage(
 			"Run simd128 bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				simd128Results, err := os.Create("./bs/simd128Benchmarks.txt")
+				simd128Results, err := os.Create("./bs/tmp/simd128Benchmarks.txt")
 				if err != nil {
 					return err
 				}
@@ -108,7 +108,7 @@ func registerDataCollectionAndGenerationTargets() {
 		sbbs.Stage(
 			"Run simd256 bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				simd256Results, err := os.Create("./bs/simd256Benchmarks.txt")
+				simd256Results, err := os.Create("./bs/tmp/simd256Benchmarks.txt")
 				if err != nil {
 					return err
 				}
@@ -123,7 +123,7 @@ func registerDataCollectionAndGenerationTargets() {
 		sbbs.Stage(
 			"Run simd512 bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				simd512Results, err := os.Create("./bs/simd512Benchmarks.txt")
+				simd512Results, err := os.Create("./bs/tmp/simd512Benchmarks.txt")
 				if err != nil {
 					return err
 				}
@@ -143,7 +143,7 @@ func registerDataCollectionAndGenerationTargets() {
 		sbbs.Stage(
 			"Run plot generator",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
-				return sbbs.RunStdout(ctxt, "./bs/plots")
+				return sbbs.RunStdout(ctxt, "./bs/bin/plots")
 			},
 		),
 	)
