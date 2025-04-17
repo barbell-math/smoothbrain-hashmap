@@ -7,10 +7,11 @@ import (
 	sbbs "github.com/barbell-math/smoothbrain-bs"
 )
 
-func registerDataCollectionAndGenerationTargets() {
+func registerDataCollectionTargets() {
 	sbbs.RegisterTarget(
 		context.Background(),
-		"collectProfiles",
+		"collectProfs",
+		sbbs.CdToRepoRoot(),
 		sbbs.Stage(
 			"Default profile",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
@@ -60,8 +61,69 @@ func registerDataCollectionAndGenerationTargets() {
 	sbbs.RegisterTarget(
 		context.Background(),
 		"collectBenchmarks",
+		sbbs.CdToRepoRoot(),
 		sbbs.Stage(
-			"Run builtin bench",
+			"Run slot probe default bench",
+			func(ctxt context.Context, cmdLineArgs ...string) error {
+				builtinResults, err := os.Create("./bs/tmp/defaultSlotProbeBenchmarks.txt")
+				if err != nil {
+					return err
+				}
+				defer builtinResults.Close()
+				return sbbs.Run(
+					ctxt, builtinResults, "go", "test",
+					"-bench=SlotProbe", "-benchmem",
+					"./",
+				)
+			},
+		),
+		sbbs.Stage(
+			"Run slot probe simd128 bench",
+			func(ctxt context.Context, cmdLineArgs ...string) error {
+				builtinResults, err := os.Create("./bs/tmp/smd128SlotProbeBenchmarks.txt")
+				if err != nil {
+					return err
+				}
+				defer builtinResults.Close()
+				return sbbs.Run(
+					ctxt, builtinResults, "go", "test",
+					"-tags=sbmap_simd128", "-bench=SlotProbe", "-benchmem",
+					"./",
+				)
+			},
+		),
+		sbbs.Stage(
+			"Run slot probe simd256 bench",
+			func(ctxt context.Context, cmdLineArgs ...string) error {
+				builtinResults, err := os.Create("./bs/tmp/smd256SlotProbeBenchmarks.txt")
+				if err != nil {
+					return err
+				}
+				defer builtinResults.Close()
+				return sbbs.Run(
+					ctxt, builtinResults, "go", "test",
+					"-tags=sbmap_simd256", "-bench=SlotProbe", "-benchmem",
+					"./",
+				)
+			},
+		),
+		sbbs.Stage(
+			"Run slot probe simd512 bench",
+			func(ctxt context.Context, cmdLineArgs ...string) error {
+				builtinResults, err := os.Create("./bs/tmp/smd512SlotProbeBenchmarks.txt")
+				if err != nil {
+					return err
+				}
+				defer builtinResults.Close()
+				return sbbs.Run(
+					ctxt, builtinResults, "go", "test",
+					"-tags=sbmap_simd512", "-bench=SlotProbe", "-benchmem",
+					"./",
+				)
+			},
+		),
+		sbbs.Stage(
+			"Run builtin map bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
 				builtinResults, err := os.Create("./bs/tmp/builtinBenchmarks.txt")
 				if err != nil {
@@ -76,7 +138,7 @@ func registerDataCollectionAndGenerationTargets() {
 			},
 		),
 		sbbs.Stage(
-			"Run default bench",
+			"Run default map bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
 				defaultResults, err := os.Create("./bs/tmp/defaultBenchmarks.txt")
 				if err != nil {
@@ -85,13 +147,13 @@ func registerDataCollectionAndGenerationTargets() {
 				defer defaultResults.Close()
 				return sbbs.Run(
 					ctxt, defaultResults, "go", "test",
-					"-bench=CustomMap", "-benchmem",
+					"-timeout", "2h", "-bench=CustomMap", "-benchmem",
 					"./",
 				)
 			},
 		),
 		sbbs.Stage(
-			"Run simd128 bench",
+			"Run simd128 map bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
 				simd128Results, err := os.Create("./bs/tmp/simd128Benchmarks.txt")
 				if err != nil {
@@ -100,13 +162,13 @@ func registerDataCollectionAndGenerationTargets() {
 				defer simd128Results.Close()
 				return sbbs.Run(
 					ctxt, simd128Results, "go", "test",
-					"-tags=sbmap_simd128", "-bench=CustomMap", "-benchmem",
+					"-timeout", "2h", "-tags=sbmap_simd128", "-bench=CustomMap", "-benchmem",
 					"./",
 				)
 			},
 		),
 		sbbs.Stage(
-			"Run simd256 bench",
+			"Run simd256 map bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
 				simd256Results, err := os.Create("./bs/tmp/simd256Benchmarks.txt")
 				if err != nil {
@@ -115,13 +177,13 @@ func registerDataCollectionAndGenerationTargets() {
 				defer simd256Results.Close()
 				return sbbs.Run(
 					ctxt, simd256Results, "go", "test",
-					"-tags=sbmap_simd256", "-bench=CustomMap", "-benchmem",
+					"-timeout", "2h", "-tags=sbmap_simd256", "-bench=CustomMap", "-benchmem",
 					"./",
 				)
 			},
 		),
 		sbbs.Stage(
-			"Run simd512 bench",
+			"Run simd512 map bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
 				simd512Results, err := os.Create("./bs/tmp/simd512Benchmarks.txt")
 				if err != nil {
@@ -130,29 +192,10 @@ func registerDataCollectionAndGenerationTargets() {
 				defer simd512Results.Close()
 				return sbbs.Run(
 					ctxt, simd512Results, "go", "test",
-					"-tags=sbmap_simd512", "-bench=CustomMap", "-benchmem",
+					"-timeout", "2h", "-tags=sbmap_simd512", "-bench=CustomMap", "-benchmem",
 					"./",
 				)
 			},
 		),
-	)
-
-	sbbs.RegisterTarget(
-		context.Background(),
-		"generatePlots",
-		sbbs.Stage(
-			"Run plot generator",
-			func(ctxt context.Context, cmdLineArgs ...string) error {
-				return sbbs.RunStdout(ctxt, "./bs/bin/plots")
-			},
-		),
-	)
-
-	sbbs.RegisterTarget(
-		context.Background(),
-		"collectBenchmarksAndGeneratePlots",
-		sbbs.TargetAsStage("collectBenchmarks"),
-		sbbs.TargetAsStage("buildPlots"),
-		sbbs.TargetAsStage("generatePlots"),
 	)
 }

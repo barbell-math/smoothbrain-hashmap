@@ -1,0 +1,52 @@
+set key left top
+set datafile separator whitespace
+
+set style line 1 \
+    linecolor rgb '#dd181f' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 2 \
+    linecolor rgb '#dd1830' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 3 \
+    linecolor rgb '#dd1851' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 4 \
+    linecolor rgb '#dd1872' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 5 \
+    linecolor rgb '#dd1893' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 6 \
+    linecolor rgb '#dd18a4' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 7 \
+    linecolor rgb '#dd18c5' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 8 \
+    linecolor rgb '#dd18e6' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+set style line 9 \
+    linecolor rgb '#dd18ff' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 0.5
+
+set terminal png size 1920/2,1080/2
+set output './img/resizeVsNsPerOp.png'
+plot './bs/tmp/resizeVsNsPerOp.dat' \
+			index 0 with linespoints linestyle 1 title "simd128 50% LF", \
+     ''     index 1 with linespoints linestyle 2 title "simd128 55% LF", \
+     ''     index 2 with linespoints linestyle 3 title "simd128 60% LF", \
+     ''     index 3 with linespoints linestyle 4 title "simd128 65% LF", \
+     ''     index 4 with linespoints linestyle 5 title "simd128 70% LF", \
+     ''     index 5 with linespoints linestyle 6 title "simd128 75% LF", \
+     ''     index 6 with linespoints linestyle 7 title "simd128 80% LF", \
+     ''     index 7 with linespoints linestyle 8 title "simd128 85% LF", \
+     ''     index 8 with linespoints linestyle 9 title "simd128 90% LF"

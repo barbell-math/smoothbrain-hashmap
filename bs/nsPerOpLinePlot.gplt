@@ -1,0 +1,202 @@
+set logscale x 10
+# set logscale y 10
+set key left top
+set datafile separator whitespace
+
+# Builtin style
+set style line 1 \
+    linecolor rgb '#000000' \
+    linetype 1 linewidth 4 \
+    pointtype 7 pointsize 1.5
+
+# Default style
+set style line 2 \
+    linecolor rgb '#dd181f' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 3 \
+    linecolor rgb '#dd1830' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 4 \
+    linecolor rgb '#dd1841' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 5 \
+    linecolor rgb '#dd1852' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 6 \
+    linecolor rgb '#dd1863' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 7 \
+    linecolor rgb '#dd1874' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 8 \
+    linecolor rgb '#dd1885' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 9 \
+    linecolor rgb '#dd1896' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 10 \
+    linecolor rgb '#dd18a6' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+
+# simd128 Style
+set style line 11 \
+    linecolor rgb '#04cc25' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 12 \
+    linecolor rgb '#04cc36' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 13 \
+    linecolor rgb '#04cc47' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 14 \
+    linecolor rgb '#04cc58' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 15 \
+    linecolor rgb '#04cc69' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 16 \
+    linecolor rgb '#04cc7a' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 17 \
+    linecolor rgb '#04cc8b' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 18 \
+    linecolor rgb '#04cc9c' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 19 \
+    linecolor rgb '#04ccad' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+
+# simd256 Style
+set style line 20 \
+    linecolor rgb '#022101' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 21 \
+    linecolor rgb '#022112' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 22 \
+    linecolor rgb '#022123' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 23 \
+    linecolor rgb '#022134' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 24 \
+    linecolor rgb '#022145' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 25 \
+    linecolor rgb '#022156' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 26 \
+    linecolor rgb '#022167' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 27 \
+    linecolor rgb '#022178' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 28 \
+    linecolor rgb '#022189' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+
+# simd512 Style
+set style line 29 \
+    linecolor rgb '#ffa514' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 30 \
+    linecolor rgb '#ffa525' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 31 \
+    linecolor rgb '#ffa536' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 32 \
+    linecolor rgb '#ffa547' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 33 \
+    linecolor rgb '#ffa558' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 34 \
+    linecolor rgb '#ffa569' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 35 \
+    linecolor rgb '#ffa57a' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 36 \
+    linecolor rgb '#ffa58b' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+set style line 37 \
+    linecolor rgb '#ffa59c' \
+    linetype 1 linewidth 2 \
+    pointtype 5 pointsize 1.5
+
+set terminal png size 1920,1080
+set output 'plot002.png'
+# plot './bs/tmp/data.dat' index 0 with linespoints linestyle 1,
+plot './bs/tmp/data.dat'  index 1 with linespoints linestyle 2 title "no simd 50% LF", \
+     ''                   index 2 with linespoints linestyle 3 title "no simd 55% LF", \
+     ''                   index 3 with linespoints linestyle 4 title "no simd 60% LF", \
+     ''                   index 4 with linespoints linestyle 5 title "no simd 65% LF", \
+     ''                   index 5 with linespoints linestyle 6 title "no simd 70% LF", \
+     ''                   index 6 with linespoints linestyle 7 title "no simd 75% LF", \
+     ''                   index 7 with linespoints linestyle 8 title "no simd 80% LF", \
+     ''                   index 8 with linespoints linestyle 9 title "no simd 85% LF", \
+     ''                   index 9 with linespoints linestyle 10 title "no simd 90% LF", \
+     ''                   index 10 with linespoints linestyle 11 title "simd128 50% LF", \
+     ''                   index 11 with linespoints linestyle 12 title "simd128 55% LF", \
+     ''                   index 12 with linespoints linestyle 13 title "simd128 60% LF", \
+     ''                   index 13 with linespoints linestyle 14 title "simd128 65% LF", \
+     ''                   index 14 with linespoints linestyle 15 title "simd128 70% LF", \
+     ''                   index 15 with linespoints linestyle 16 title "simd128 75% LF", \
+     ''                   index 16 with linespoints linestyle 17 title "simd128 80% LF", \
+     ''                   index 17 with linespoints linestyle 18 title "simd128 85% LF", \
+     ''                   index 18 with linespoints linestyle 19 title "simd128 90% LF", \
+     ''                   index 19 with linespoints linestyle 20 title "simd256 50% LF", \
+     ''                   index 20 with linespoints linestyle 21 title "simd256 55% LF", \
+     ''                   index 21 with linespoints linestyle 22 title "simd256 60% LF", \
+     ''                   index 22 with linespoints linestyle 23 title "simd256 65% LF", \
+     ''                   index 23 with linespoints linestyle 24 title "simd256 70% LF", \
+     ''                   index 24 with linespoints linestyle 25 title "simd256 75% LF", \
+     ''                   index 24 with linespoints linestyle 26 title "simd256 80% LF", \
+     ''                   index 25 with linespoints linestyle 27 title "simd256 85% LF", \
+     ''                   index 26 with linespoints linestyle 28 title "simd256 90% LF", \
+     ''                   index 27 with linespoints linestyle 29 title "simd512 50% LF", \
+     ''                   index 28 with linespoints linestyle 30 title "simd512 55% LF", \
+     ''                   index 29 with linespoints linestyle 31 title "simd512 60% LF", \
+     ''                   index 30 with linespoints linestyle 32 title "simd512 65% LF", \
+     ''                   index 31 with linespoints linestyle 33 title "simd512 70% LF", \
+     ''                   index 32 with linespoints linestyle 34 title "simd512 75% LF", \
+     ''                   index 33 with linespoints linestyle 35 title "simd512 80% LF", \
+     ''                   index 34 with linespoints linestyle 36 title "simd512 85% LF", \
+     ''                   index 35 with linespoints linestyle 37 title "simd512 90% LF"

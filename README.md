@@ -363,3 +363,44 @@ produces on high optimization levels.
 1. [Algorithmica](https://en.algorithmica.org/hpc/simd/): This is a resource to
 better understand SIMD instructions and how to use them. If you have not dealt
 with SIMD instructions before it is recommended to read this first.
+
+## Why?
+
+Golang has a builtin map. Why make a new one? Because I wanted to support
+arbitrary types as keys. This is just a small issue that I have run into before
+when trying to write generic code. The builtin map being restricted to
+`comparable` types restricts it from being used as a set in many scenarios. So,
+this map implementation allows the user to supply their own custom equality and
+hash functions. It is assumed that the functions the user supplies are valid for
+use with a map.
+
+## Implementation
+
+The map in this package is implemented as a swiss table with one contiguous
+backing array for storage. This is similar to the
+[implementation that the builtin map uses](https://go.dev/blog/swisstable),
+except the builtin map does not use one contiguous array for backing storage, it
+uses the more widely accepted bucket approach.
+
+![plot](./img/resizeVsNsPerOp.png)
+
+
+The reasoning behind implementing
+this map this way is twofold:
+
+1. It provides better control over how many allocations occur when through
+setting the growth factor of the map.
+1. I wanted to match the performance of this map to be as close as possible to
+the performance of the builtin map. The builtin map is a swiss table that is
+tuned to take advantage of SIMD instructions. I figured it would be difficult to
+match the performance of the builtin map without also using an approach that was
+able to take advantage of SIMD instructions.
+
+## When Should You Use This?
+
+There are a couple scenarios where this map will make sense to use:
+
+1. You want to support maps with key types outside of the `comparable` type set
+1. You want to use a map that performs less allocations than the builtin map
+1. Your hardware has SIMD support and you can take advantage of it
+1. You want more control over memory vs performance trade-offs

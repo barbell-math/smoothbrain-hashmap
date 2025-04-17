@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	sbbs "github.com/barbell-math/smoothbrain-bs"
+	sberr "github.com/barbell-math/smoothbrain-errs"
 	"golang.org/x/tools/benchmark/parse"
 )
 
@@ -41,19 +44,17 @@ var (
 	}
 )
 
-func parseAllBenchResults() {
+func parseAllBenchResults() error {
 	for f, tags := range rawDataFiles {
 		file, err := os.Open(f)
 		if err != nil {
-			fmt.Println("Error opening file:", err)
-			return
+			return sberr.InverseWrap(err, "Could not open data file to read results.")
 		}
 		defer file.Close()
 
 		benchmarks, err := parse.ParseSet(file)
 		if err != nil {
-			fmt.Println("Error parsing benchmark results:", err)
-			return
+			return sberr.InverseWrap(err, "Error parsing benchmark results")
 		}
 
 		for _, benchmark := range benchmarks {
@@ -94,6 +95,48 @@ func parseAllBenchResults() {
 			}
 		}
 	}
+
+	return nil
+}
+
+func makeResizingPlot(ctxt context.Context) error {
+	f, err := os.Create("./bs/tmp/resizeVsNsPerOp.dat")
+	if err != nil {
+		panic(err)
+	}
+
+	points := []point{}
+	// TODO - replace with function call to generate all unique growth factors
+	for i := int64(50); i < 95; i += 5 {
+		points = []point{}
+		for _, v := range allBenchResults {
+			cont := v.mapType != "custom"
+			cont = cont || v.operation != "Put"
+			cont = cont || v.tags != "simd128"
+			cont = cont || v.growthFactor != i
+			cont = cont || v.numElements > 1e4
+			if cont {
+				continue
+			}
+
+			points = append(
+				points, point{X: float64(v.numElements), Y: v.nsPerOp},
+			)
+		}
+		slices.SortFunc[[]point](points, func(a, b point) int {
+			return int(a.X - b.X)
+		})
+
+		f.WriteString(fmt.Sprintf("# %s, %d map data block\n", "simd128", i))
+		f.WriteString("# X Y\n")
+		for _, p := range points {
+			f.WriteString(fmt.Sprintf(" %f %f\n", p.X, p.Y))
+		}
+		f.WriteString("\n\n")
+	}
+
+	f.Close()
+	return sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/resizeVsNsPerOp.gplt")
 }
 
 func makeNsPerOpLinePlot() {
@@ -120,6 +163,13 @@ func makeNsPerOpLinePlot() {
 	}
 	f.WriteString("\n\n")
 
+	scalingFactors := map[int64]float64{}
+	for _, v := range allBenchResults {
+		if v.mapType == "custom" && v.operation == "Put" {
+			scalingFactors[v.numElements] = max(scalingFactors[v.numElements], v.nsPerOp)
+		}
+	}
+
 	tags := slices.Collect(maps.Values(rawDataFiles))
 	slices.Sort(tags)
 	points := []point{}
@@ -142,7 +192,9 @@ func makeNsPerOpLinePlot() {
 				return int(a.X - b.X)
 			})
 			for i, _ := range points {
-				points[i].Y -= builtinPoints[i].Y
+				// points[i].Y -= builtinPoints[i].Y / scalingFactors[int64(points[i].X)]
+				// points[i].Y /= scalingFactors[int64(points[i].X)]
+				points[i].Y /= builtinPoints[i].Y
 			}
 
 			f.WriteString(fmt.Sprintf("# %s, %d map data block\n", iterTag, i))
@@ -157,7 +209,28 @@ func makeNsPerOpLinePlot() {
 	f.Close()
 }
 
-func main() {
-	parseAllBenchResults()
-	makeNsPerOpLinePlot()
+func registerPlotTargets() {
+	sbbs.RegisterTarget(
+		context.Background(),
+		"generatePlots",
+		sbbs.CdToRepoRoot(),
+		sbbs.Stage(
+			"Run plot generator",
+			func(ctxt context.Context, cmdLineArgs ...string) error {
+				if err := sbbs.Mkdir("./bs/tmp"); err != nil {
+					return err
+				}
+				if err := parseAllBenchResults(); err != nil {
+					return err
+				}
+				if err := makeResizingPlot(ctxt); err != nil {
+					return err
+				}
+
+				// makeNsPerOpLinePlot()
+				// sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/nsPerOpLinePlot.gplt")
+				return nil
+			},
+		),
+	)
 }

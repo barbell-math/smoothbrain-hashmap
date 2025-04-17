@@ -9,20 +9,21 @@ import (
 func registerUnitTestTargets() {
 	sbbs.RegisterTarget(
 		context.Background(),
-		"unitTests",
+		"test",
+		sbbs.CdToRepoRoot(),
 		sbbs.Stage(
 			"Run go test",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
+				arg := "nosimd"
 				if len(cmdLineArgs) != 1 {
-					sbbs.LogErr("The unitTests build target requires one argument.")
-					sbbs.LogInfo("Usage: ")
-					sbbs.LogInfo("\t./bs unitTests [default | 128 | 256 | 512 | all]")
-					sbbs.LogQuietInfo("Consider: Re-running with a valid unit test argument")
-					return sbbs.StopErr
+					sbbs.LogInfo("Defaulting to non-simd unit tests")
+					sbbs.LogInfo("Available test targets: %v", testTargetsAndAll)
+				} else {
+					arg = cmdLineArgs[0]
 				}
 
-				switch cmdLineArgs[0] {
-				case "default":
+				switch arg {
+				case "nosimd":
 					return sbbs.RunStdout(ctxt, "go", "test", "-v", "./...")
 				case "128":
 					return sbbs.RunStdout(ctxt, "go", "test", "-tags=sbmap_simd128", "-v", "./...")
@@ -47,7 +48,7 @@ func registerUnitTestTargets() {
 				default:
 					sbbs.LogErr("An invalid unitTest argument was supplied.")
 					sbbs.LogInfo("Usage: ")
-					sbbs.LogInfo("\t./bs unitTests [default | 128 | 256 | 512 | all]")
+					sbbs.LogInfo("\t./bs test %v", testTargetsAndAll)
 					sbbs.LogQuietInfo("Consider: Re-running with a valid unit test argument")
 					return sbbs.StopErr
 				}
@@ -57,20 +58,21 @@ func registerUnitTestTargets() {
 
 	sbbs.RegisterTarget(
 		context.Background(),
-		"unitTestExe",
+		"testexe",
+		sbbs.CdToRepoRoot(),
 		sbbs.Stage(
 			"Run go test -c",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
+				arg := "nosimd"
 				if len(cmdLineArgs) != 1 {
-					sbbs.LogErr("The unitTestExe build target requires one argument.")
-					sbbs.LogInfo("Usage: ")
-					sbbs.LogInfo("\t./bs unitTestExe [default | 128 | 256 | 512]")
-					sbbs.LogQuietInfo("Consider: Re-running with a valid unit test argument")
-					return sbbs.StopErr
+					sbbs.LogInfo("Defaulting to non-simd unit tests")
+					sbbs.LogInfo("Available test targets: %v", testTargets)
+				} else {
+					arg = cmdLineArgs[0]
 				}
 
-				switch cmdLineArgs[0] {
-				case "default":
+				switch arg {
+				case "nosimd":
 					return sbbs.RunStdout(
 						ctxt, "go", "test",
 						"-gcflags", "-N", "-ldflags=-compressdwarf=false",
@@ -98,9 +100,9 @@ func registerUnitTestTargets() {
 						"-c", "./...",
 					)
 				default:
-					sbbs.LogErr("An invalid unitTestExe argument was supplied.")
+					sbbs.LogErr("An invalid unitTest argument was supplied.")
 					sbbs.LogInfo("Usage: ")
-					sbbs.LogInfo("\t./bs unitTestExe [default | 128 | 256 | 512]")
+					sbbs.LogInfo("\t./bs testexe %v", testTargets)
 					sbbs.LogQuietInfo("Consider: Re-running with a valid unit test argument")
 					return sbbs.StopErr
 				}

@@ -10,19 +10,20 @@ func registerBenchTargets() {
 	sbbs.RegisterTarget(
 		context.Background(),
 		"bench",
+		sbbs.CdToRepoRoot(),
 		sbbs.Stage(
 			"Run go bench",
 			func(ctxt context.Context, cmdLineArgs ...string) error {
+				arg := "nosimd"
 				if len(cmdLineArgs) != 1 {
-					sbbs.LogErr("The bench build target requires one argument.")
-					sbbs.LogInfo("Usage: ")
-					sbbs.LogInfo("\t./bs bench [default | 128 | 256 | 512]")
-					sbbs.LogQuietInfo("Consider: Re-running with a valid unit test argument")
-					return sbbs.StopErr
+					sbbs.LogInfo("Defaulting to non-simd unit tests")
+					sbbs.LogInfo("Available bench targets: %v", testTargets)
+				} else {
+					arg = cmdLineArgs[0]
 				}
 
-				switch cmdLineArgs[0] {
-				case "default":
+				switch arg {
+				case "nosimd":
 					return sbbs.RunStdout(
 						ctxt, "go", "test",
 						"-bench=CustomMap", "-benchmem",
@@ -47,9 +48,9 @@ func registerBenchTargets() {
 						"./",
 					)
 				default:
-					sbbs.LogErr("An invalid bench argument was supplied.")
+					sbbs.LogErr("An invalid unitTest argument was supplied.")
 					sbbs.LogInfo("Usage: ")
-					sbbs.LogInfo("\t./bs bench [default | 128 | 256 | 512]")
+					sbbs.LogInfo("\t./bs bench %v", testTargets)
 					sbbs.LogQuietInfo("Consider: Re-running with a valid unit test argument")
 					return sbbs.StopErr
 				}

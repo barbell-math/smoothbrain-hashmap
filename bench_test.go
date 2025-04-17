@@ -2,7 +2,9 @@ package sbmap
 
 import (
 	"fmt"
+	"iter"
 	"math/rand"
+	"slices"
 	"testing"
 
 	slotprobes "github.com/barbell-math/smoothbrain-hashmap/slotProbes"
@@ -23,7 +25,26 @@ type (
 	}
 )
 
-func BenchmarkGetSlotProbe(b *testing.B) {
+func powerOf10SizeSeq(_max int) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := int(1e2); i < _max; i *= 10 {
+			if !yield(i) {
+				break
+			}
+		}
+	}
+}
+func smallMapsSizeSeq() iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := int(1e2); i < 1e4; i += 200 {
+			if !yield(i) {
+				break
+			}
+		}
+	}
+}
+
+func BenchmarkSlotProbe(b *testing.B) {
 	flags := [slotprobes.GroupSize]uint8{}
 	slotKeys := [slotprobes.GroupSize]uint8{}
 	flagsRow := [8]uint8{0, 1, 2, 0, 1, 2, 0, 0}
@@ -39,42 +60,53 @@ func BenchmarkGetSlotProbe(b *testing.B) {
 }
 
 func BenchmarkBuiltinMap(b *testing.B) {
-	b.Run("", benchmarkOps(
-		setupOps[map[int32]int64]{
-			PutOp:    builtinMapEmptyInit,
-			GetOp:    builtinMapValInit,
-			RemoveOp: builtinMapValInit,
-			MixedOp:  builtinMapEmptyInit,
-		},
-		benchOps[map[int32]int64]{
-			PutOp:    builtinMapPut,
-			GetOp:    builtinMapGet,
-			RemoveOp: builtinMapRemove,
-			MixedOp:  builtinMapMixedUsage,
-		},
-	))
+	setupOps := setupOps[map[int32]int64]{
+		PutOp:    builtinMapEmptyInit,
+		GetOp:    builtinMapValInit,
+		RemoveOp: builtinMapValInit,
+		MixedOp:  builtinMapEmptyInit,
+	}
+	benchOps := benchOps[map[int32]int64]{
+		PutOp:    builtinMapPut,
+		GetOp:    builtinMapGet,
+		RemoveOp: builtinMapRemove,
+		MixedOp:  builtinMapMixedUsage,
+	}
+	b.Run("PowsOf10", benchmarkOps(setupOps, benchOps, powerOf10SizeSeq(1e8)))
+	// b.Run("PowsOf10", benchmarkMixedOps(setupOps, benchOps, powerOf10SizeSeq(1e5)))
+	b.Run("SmallSizes", benchmarkOps(setupOps, benchOps, smallMapsSizeSeq()))
 }
 
 func BenchmarkCustomMap(b *testing.B) {
-	b.Run("", benchmarkDifferentGrowthFactors(
-		setupOps[*Map[int32, int64]]{
-			PutOp:    customMapEmptyInit,
-			GetOp:    customMapValInit,
-			RemoveOp: customMapValInit,
-			MixedOp:  customMapEmptyInit,
-		},
-		benchOps[*Map[int32, int64]]{
-			PutOp:    customMapPut,
-			GetOp:    customMapGet,
-			RemoveOp: customMapRemove,
-			MixedOp:  customMapMixedUsage,
-		},
+	setupOps := setupOps[*Map[int32, int64]]{
+		PutOp:    customMapEmptyInit,
+		GetOp:    customMapValInit,
+		RemoveOp: customMapValInit,
+		MixedOp:  customMapEmptyInit,
+	}
+	benchOps := benchOps[*Map[int32, int64]]{
+		PutOp:    customMapPut,
+		GetOp:    customMapGet,
+		RemoveOp: customMapRemove,
+		MixedOp:  customMapMixedUsage,
+	}
+	b.Run("PowsOf10", benchmarkDifferentGrowthFactors(
+		setupOps, benchOps,
+		slices.Values([]int{50, 55, 60, 65, 70, 75, 80, 85, 90}),
+		powerOf10SizeSeq(1e8),
+	))
+	b.Run("SmallSizes", benchmarkDifferentGrowthFactors(
+		setupOps, benchOps,
+		slices.Values([]int{50, 55, 60, 65, 70, 75, 80, 85, 90}),
+		smallMapsSizeSeq(),
 	))
 }
 
 func benchmarkDifferentGrowthFactors[T any](
 	setup setupOps[T],
 	ops benchOps[T],
+	growthFactors iter.Seq[int],
+	sizes iter.Seq[int],
 ) func(b *testing.B) {
 	return func(b *testing.B) {
 		subTests := func(growFactor int) func(b *testing.B) {
@@ -84,11 +116,12 @@ func benchmarkDifferentGrowthFactors[T any](
 				b.Cleanup(func() {
 					_growFactor = origGrowthFactor
 				})
-				b.Run("", benchmarkOps(setup, ops))
+				b.Run("", benchmarkOps(setup, ops, sizes))
+				// b.Run("", benchmarkMixedOps(setup, ops, sizes))
 			}
 		}
 
-		for i := 50; i < 95; i += 5 {
+		for i := range growthFactors {
 			b.Run(
 				fmt.Sprintf("%d%% GrowthFactor", i),
 				subTests(i),
@@ -97,32 +130,48 @@ func benchmarkDifferentGrowthFactors[T any](
 	}
 }
 
-func benchmarkOps[T any](setup setupOps[T], ops benchOps[T]) func(b *testing.B) {
+func benchmarkOps[T any](
+	setup setupOps[T],
+	ops benchOps[T],
+	sizes iter.Seq[int],
+) func(b *testing.B) {
 	return func(b *testing.B) {
-		b.Run("Put", benchmarkSizeRange(1e2, 1e8, 10, setup.PutOp, ops.PutOp))
-		b.Run("PutAndGet", benchmarkSizeRange(1e2, 1e8, 10, setup.GetOp, ops.GetOp))
-		b.Run("PutAndRemove", benchmarkSizeRange(1e2, 1e8, 10, setup.RemoveOp, ops.RemoveOp))
-		b.Run("Mixed", benchmarkSizeRange(1e2, 1e5, 10, setup.MixedOp, ops.MixedOp))
+		b.Run("Put", benchmarkSizeRange(setup.PutOp, ops.PutOp, sizes))
+		b.Run("PutAndGet", benchmarkSizeRange(setup.GetOp, ops.GetOp, sizes))
+		b.Run("PutAndRemove", benchmarkSizeRange(setup.RemoveOp, ops.RemoveOp, sizes))
+	}
+}
+
+func benchmarkMixedOps[T any](
+	setup setupOps[T],
+	ops benchOps[T],
+	sizes iter.Seq[int],
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		b.Run("Mixed", benchmarkSizeRange(setup.MixedOp, ops.MixedOp, sizes))
 	}
 }
 
 func benchmarkSizeRange[T any](
-	start int,
-	end int,
-	step int,
 	setupOp func(size int) T,
 	benchOp func(input T, size int),
+	sizes iter.Seq[int],
 ) func(b *testing.B) {
 	return func(b *testing.B) {
-		for i := start; i < end; i *= step {
+		for i := range sizes {
 			b.Run(
 				fmt.Sprintf("%d Elements", i),
 				func(b *testing.B) {
 					for b.Loop() {
-						// Setup in the benchmark loop :0
+						// Setup in the benchmark loop :O
 						// It has to be here otherwise the reported allocs/op
 						// will always be 1. For whatever reason the allocations
 						// are only tracked in the loop.
+						//
+						// Also, another  somewhat separate issue is that the
+						// benchmarks timer cannot be started and stopped. Doing
+						// so will cause the test to hang for short ops.
+						// https://stackoverflow.com/questions/37620251/golang-benchmarking-b-stoptimer-hangs-is-it-me
 						setupVal := setupOp(i)
 						benchOp(setupVal, i)
 					}
