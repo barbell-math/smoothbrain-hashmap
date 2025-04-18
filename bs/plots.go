@@ -106,6 +106,7 @@ func uniqueGrowthFactors() []int64 {
 			rv = append(rv, v.growthFactor)
 		}
 	}
+	slices.Sort(rv)
 	return rv
 }
 
@@ -173,7 +174,7 @@ func makeAllocsPlot(ctxt context.Context) error {
 	return sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/numElementsVsAllocs.gplt")
 }
 
-func makeResizingPlot(ctxt context.Context) error {
+func makeNsPerOpLinePlot(ctxt context.Context) error {
 	f, err := os.Create("./bs/tmp/numElementsVsNsPerOp.dat")
 	if err != nil {
 		panic(err)
@@ -317,7 +318,7 @@ func registerPlotTargets() {
 				if err := makeAllocsPlot(ctxt); err != nil {
 					return err
 				}
-				if err := makeResizingPlot(ctxt); err != nil {
+				if err := makeNsPerOpLinePlot(ctxt); err != nil {
 					return err
 				}
 				if err := makeNsPerOpLinePlotAllTags(ctxt); err != nil {
