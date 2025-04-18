@@ -27,5 +27,5 @@ jobs:
 
     - name: Run Ops
       run: |
-        go build -o ./bs/bs ./bs && ./bs/bs mergegate all
+        go build -o ./bs/bs ./bs && ./bs/bs mergegate
       shell: bash
