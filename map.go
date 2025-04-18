@@ -38,7 +38,7 @@ var (
 	_defaultInitialCap = max(1, 64/slotprobes.GroupSize)
 	// A value between 0 and 100 that determines how full the map can get before
 	// the hash map doubles the underlying slice.
-	_growFactor = 50
+	_growFactor = 75
 	// A value between 0 and 100 that determines how empty the map can get
 	// before the hash map halves the underlying slice.
 	_shrinkFactor = 25

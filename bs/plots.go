@@ -99,22 +99,113 @@ func parseAllBenchResults() error {
 	return nil
 }
 
-func makeResizingPlot(ctxt context.Context) error {
-	f, err := os.Create("./bs/tmp/resizeVsNsPerOp.dat")
+func uniqueGrowthFactors() []int64 {
+	rv := []int64{}
+	for _, v := range allBenchResults {
+		if v.growthFactor != 0 && !slices.Contains(rv, v.growthFactor) {
+			rv = append(rv, v.growthFactor)
+		}
+	}
+	return rv
+}
+
+func makeAllocsPlot(ctxt context.Context) error {
+	f, err := os.Create("./bs/tmp/numElementsVsAllocs.dat")
 	if err != nil {
 		panic(err)
 	}
 
+	builtinPoints := []point{}
+	for _, v := range allBenchResults {
+		cont := v.mapType != "builtin"
+		cont = cont || v.operation != "Put"
+		cont = cont || v.numElements%10 != 0
+		cont = cont || v.numElements > 5e4
+		if cont {
+			continue
+		}
+
+		builtinPoints = append(
+			builtinPoints, point{X: float64(v.numElements), Y: float64(v.allocPerOp)},
+		)
+	}
+	slices.SortFunc[[]point](builtinPoints, func(a, b point) int {
+		return int(a.X - b.X)
+	})
+	f.WriteString("# Builtin map data block\n")
+	f.WriteString("# X Y\n")
+	for _, p := range builtinPoints {
+		f.WriteString(fmt.Sprintf(" %f %f\n", p.X, p.Y))
+	}
+	f.WriteString("\n\n")
+
 	points := []point{}
-	// TODO - replace with function call to generate all unique growth factors
-	for i := int64(50); i < 95; i += 5 {
+	for _, i := range uniqueGrowthFactors() {
 		points = []point{}
 		for _, v := range allBenchResults {
 			cont := v.mapType != "custom"
 			cont = cont || v.operation != "Put"
 			cont = cont || v.tags != "simd128"
 			cont = cont || v.growthFactor != i
-			cont = cont || v.numElements > 1e4
+			cont = cont || v.numElements%10 != 0
+			cont = cont || v.numElements > 5e4
+			if cont {
+				continue
+			}
+
+			points = append(
+				points, point{X: float64(v.numElements), Y: float64(v.allocPerOp)},
+			)
+		}
+		slices.SortFunc[[]point](points, func(a, b point) int {
+			return int(a.X - b.X)
+		})
+
+		f.WriteString(fmt.Sprintf("# %s, %d map data block\n", "simd128", i))
+		f.WriteString("# X Y\n")
+		for _, p := range points {
+			f.WriteString(fmt.Sprintf(" %f %f\n", p.X, p.Y))
+		}
+		f.WriteString("\n\n")
+	}
+
+	f.Close()
+	return sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/numElementsVsAllocs.gplt")
+}
+
+func makeResizingPlot(ctxt context.Context) error {
+	f, err := os.Create("./bs/tmp/numElementsVsNsPerOp.dat")
+	if err != nil {
+		panic(err)
+	}
+
+	builtinPoints := []point{}
+	for _, v := range allBenchResults {
+		if v.mapType == "builtin" && v.operation == "Put" && v.numElements <= 5e4 {
+			builtinPoints = append(
+				builtinPoints, point{X: float64(v.numElements), Y: v.nsPerOp},
+			)
+		}
+	}
+	slices.SortFunc[[]point](builtinPoints, func(a, b point) int {
+		return int(a.X - b.X)
+	})
+	f.WriteString("# Builtin map data block\n")
+	f.WriteString("# X Y\n")
+	for _, p := range builtinPoints {
+		f.WriteString(fmt.Sprintf(" %f %f\n", p.X, p.Y))
+	}
+	f.WriteString("\n\n")
+
+	points := []point{}
+	for _, i := range uniqueGrowthFactors() {
+		points = []point{}
+		for _, v := range allBenchResults {
+			cont := v.mapType != "custom"
+			cont = cont || v.operation != "Put"
+			cont = cont || v.tags != "simd128"
+			cont = cont || v.growthFactor != i
+			cont = cont || v.numElements > 5e4
 			if cont {
 				continue
 			}
@@ -136,11 +227,11 @@ func makeResizingPlot(ctxt context.Context) error {
 	}
 
 	f.Close()
-	return sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/resizeVsNsPerOp.gplt")
+	return sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/numElementsVsNsPerOp.gplt")
 }
 
-func makeNsPerOpLinePlot() {
-	f, err := os.Create("./bs/tmp/data.dat")
+func makeNsPerOpLinePlotAllTags(ctxt context.Context) error {
+	f, err := os.Create("./bs/tmp/numElementsVsNsPerOpAllTags.dat")
 	if err != nil {
 		panic(err)
 	}
@@ -178,8 +269,7 @@ func makeNsPerOpLinePlot() {
 			continue
 		}
 
-		// TODO - replace with function call to generate all unique growth factors
-		for i := int64(50); i < 95; i += 5 {
+		for _, i := range uniqueGrowthFactors() {
 			points = []point{}
 			for _, v := range allBenchResults {
 				if v.mapType == "custom" && v.operation == "Put" && v.tags == iterTag && v.growthFactor == i {
@@ -207,6 +297,7 @@ func makeNsPerOpLinePlot() {
 	}
 
 	f.Close()
+	return sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/numElementsVsNsPerOpAllTags.gplt")
 }
 
 func registerPlotTargets() {
@@ -223,12 +314,15 @@ func registerPlotTargets() {
 				if err := parseAllBenchResults(); err != nil {
 					return err
 				}
+				if err := makeAllocsPlot(ctxt); err != nil {
+					return err
+				}
 				if err := makeResizingPlot(ctxt); err != nil {
 					return err
 				}
-
-				// makeNsPerOpLinePlot()
-				// sbbs.RunStdout(ctxt, "gnuplot", "-c", "./bs/nsPerOpLinePlot.gplt")
+				if err := makeNsPerOpLinePlotAllTags(ctxt); err != nil {
+					return err
+				}
 				return nil
 			},
 		),
