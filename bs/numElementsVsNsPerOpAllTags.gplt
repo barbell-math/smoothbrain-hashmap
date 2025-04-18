@@ -1,0 +1,91 @@
+set logscale x 10
+set logscale y 10
+set yrange [0.6:3]
+set datafile separator whitespace
+set key vertical maxrows 9 left top textcolor 'white'
+set title "Time Taken to Place N Elements in the Map Relative to the Time Taken To Place N Elements in the Builtin Map\n{/*0.7 Number of Elements Vs Average Nanosecends/Operation Normalized Against the Builtin Map (Lower is Better)}" tc rgb 'white'
+set xlabel "Number of Elements (count)" tc rgb 'white'
+set ylabel "Average Nanosecends/Operation Normalized Relative to the Builtin Map (ns/op)" tc rgb 'white'
+
+set style line 1 lt 1 lc rgb 'purple' pointtype -1
+
+set style line 2 lt 1 lc rgb '#770000FF' pointtype -1 # very light red
+set style line 3 lt 1 lc rgb '#880000FF' pointtype -1 # 
+set style line 4 lt 1 lc rgb '#990000FF' pointtype -1 # 
+set style line 5 lt 1 lc rgb '#AA0000FF' pointtype -1 # light red
+set style line 6 lt 1 lc rgb '#BB0000FF' pointtype -1 # 
+set style line 7 lt 1 lc rgb '#CC0000FF' pointtype -1 # medium red
+set style line 8 lt 1 lc rgb '#DD0000FF' pointtype -1 #
+set style line 9 lt 1 lc rgb '#EE0000FF' pointtype -1 # dark red
+set style line 10 lt 1 lc rgb '#FF0000FF' pointtype -1 # dark red
+
+set style line 11 lt 1 lc rgb '#7700FF00' pointtype -1 # very light red
+set style line 12 lt 1 lc rgb '#8800FF00' pointtype -1 # 
+set style line 13 lt 1 lc rgb '#9900FF00' pointtype -1 # 
+set style line 14 lt 1 lc rgb '#AA00FF00' pointtype -1 # light red
+set style line 15 lt 1 lc rgb '#BB00FF00' pointtype -1 # 
+set style line 16 lt 1 lc rgb '#CC00FF00' pointtype -1 # medium red
+set style line 17 lt 1 lc rgb '#DD00FF00' pointtype -1 #
+set style line 18 lt 1 lc rgb '#EE00FF00' pointtype -1 # dark red
+set style line 19 lt 1 lc rgb '#FF00FF00' pointtype -1 # dark red
+
+set style line 20 lt 1 lc rgb '#77FF0000' pointtype -1 # very light red
+set style line 21 lt 1 lc rgb '#88FF0000' pointtype -1 # 
+set style line 22 lt 1 lc rgb '#99FF0000' pointtype -1 # 
+set style line 23 lt 1 lc rgb '#AAFF0000' pointtype -1 # light red
+set style line 24 lt 1 lc rgb '#BBFF0000' pointtype -1 # 
+set style line 25 lt 1 lc rgb '#CCFF0000' pointtype -1 # medium red
+set style line 26 lt 1 lc rgb '#DDFF0000' pointtype -1 #
+set style line 27 lt 1 lc rgb '#EEFF0000' pointtype -1 # dark red
+set style line 28 lt 1 lc rgb '#FFFF0000' pointtype -1 # dark red
+
+set style line 29 lt 1 lc rgb '#77FFFF00' pointtype -1 # very light red
+set style line 30 lt 1 lc rgb '#88FFFF00' pointtype -1 # 
+set style line 31 lt 1 lc rgb '#99FFFF00' pointtype -1 # 
+set style line 32 lt 1 lc rgb '#AAFFFF00' pointtype -1 # light red
+set style line 33 lt 1 lc rgb '#BBFFFF00' pointtype -1 # 
+set style line 34 lt 1 lc rgb '#CCFFFF00' pointtype -1 # medium red
+set style line 35 lt 1 lc rgb '#DDFFFF00' pointtype -1 #
+set style line 36 lt 1 lc rgb '#EEFFFF00' pointtype -1 # dark red
+set style line 37 lt 1 lc rgb '#FFFFFF00' pointtype -1 # dark red
+
+set terminal png truecolor size 1920,1080 background rgb 'black'
+set border lc rgb 'white'
+set output './img/numElementsVsNsPerOpAllTags.png'
+plot './bs/tmp/numElementsVsNsPerOpAllTags.dat' \
+		index 1 with linespoints linestyle 2 title "no simd 50% LF", \
+	''	index 2 with linespoints linestyle 3 title "no simd 55% LF", \
+	''	index 3 with linespoints linestyle 4 title "no simd 60% LF", \
+	''	index 4 with linespoints linestyle 5 title "no simd 65% LF", \
+	''	index 5 with linespoints linestyle 6 title "no simd 70% LF", \
+	''	index 6 with linespoints linestyle 7 title "no simd 75% LF", \
+	''	index 7 with linespoints linestyle 8 title "no simd 80% LF", \
+	''	index 8 with linespoints linestyle 9 title "no simd 85% LF", \
+	''	index 9 with linespoints linestyle 10 title "no simd 90% LF", \
+	''	index 10 with linespoints linestyle 11 title "simd128 50% LF", \
+	''	index 11 with linespoints linestyle 12 title "simd128 55% LF", \
+	''	index 12 with linespoints linestyle 13 title "simd128 60% LF", \
+	''	index 13 with linespoints linestyle 14 title "simd128 65% LF", \
+	''	index 14 with linespoints linestyle 15 title "simd128 70% LF", \
+	''	index 15 with linespoints linestyle 16 title "simd128 75% LF", \
+	''	index 16 with linespoints linestyle 17 title "simd128 80% LF", \
+	''	index 17 with linespoints linestyle 18 title "simd128 85% LF", \
+	''	index 18 with linespoints linestyle 19 title "simd128 90% LF", \
+	''	index 19 with linespoints linestyle 20 title "simd256 50% LF", \
+	''	index 20 with linespoints linestyle 21 title "simd256 55% LF", \
+	''	index 21 with linespoints linestyle 22 title "simd256 60% LF", \
+	''	index 22 with linespoints linestyle 23 title "simd256 65% LF", \
+	''	index 23 with linespoints linestyle 24 title "simd256 70% LF", \
+	''	index 24 with linespoints linestyle 25 title "simd256 75% LF", \
+	''	index 25 with linespoints linestyle 26 title "simd256 80% LF", \
+	''	index 26 with linespoints linestyle 27 title "simd256 85% LF", \
+	''	index 27 with linespoints linestyle 28 title "simd256 90% LF", \
+	''	index 28 with linespoints linestyle 29 title "simd512 50% LF", \
+	''	index 29 with linespoints linestyle 30 title "simd512 55% LF", \
+	''	index 30 with linespoints linestyle 31 title "simd512 60% LF", \
+	''	index 31 with linespoints linestyle 32 title "simd512 65% LF", \
+	''	index 32 with linespoints linestyle 33 title "simd512 70% LF", \
+	''	index 33 with linespoints linestyle 34 title "simd512 75% LF", \
+	''	index 34 with linespoints linestyle 35 title "simd512 80% LF", \
+	''	index 35 with linespoints linestyle 36 title "simd512 85% LF", \
+	''	index 36 with linespoints linestyle 37 title "simd512 90% LF"

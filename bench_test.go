@@ -1,316 +1,327 @@
 package sbmap
 
 import (
+	"fmt"
+	"iter"
 	"math/rand"
+	"slices"
 	"testing"
+
+	slotprobes "github.com/barbell-math/smoothbrain-hashmap/slotProbes"
 )
 
-func BenchmarkDifferentGrowthFactors(b *testing.B) {
-	op := func(growthFactor int) {
-		origGrowthFactor := _growFactor
-		_growFactor = growthFactor
+type (
+	setupOps[T any] struct {
+		PutOp    func(size int) T
+		GetOp    func(size int) T
+		RemoveOp func(size int) T
+		MixedOp  func(size int) T
+	}
+	benchOps[T any] struct {
+		PutOp    func(input T, size int)
+		GetOp    func(input T, size int)
+		RemoveOp func(input T, size int)
+		MixedOp  func(input T, size int)
+	}
+)
 
-		h := New[int32, int64]()
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < 1000; i++ {
-			h.Put(int32(randVals.Int31()), int64(randVals.Int31()))
-		}
-		randVals = rand.New(rand.NewSource(3))
-		for i := 0; i < 1000; i++ {
-			randVal := randVals.Int31()
-			val, ok := h.Get(int32(randVal))
-			if !ok || val != int64(randVals.Int31()) {
-				b.Fatal("Map malfunctioned!!")
+func powerOf10SizeSeq(_max int) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := int(1e2); i < _max; i *= 10 {
+			if !yield(i) {
+				break
 			}
 		}
-
-		_growFactor = origGrowthFactor
 	}
-
-	b.Run("85% Full Growth Factor", func(b *testing.B) {
-		for b.Loop() {
-			op(85)
+}
+func smallMapsSizeSeq() iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := int(1e2); i < 1e4; i += 200 {
+			if !yield(i) {
+				break
+			}
 		}
-	})
-	b.Run("70% Full Growth Factor", func(b *testing.B) {
-		for b.Loop() {
-			op(70)
-		}
-	})
-	b.Run("65% Full Growth Factor", func(b *testing.B) {
-		for b.Loop() {
-			op(65)
-		}
-	})
-	b.Run("60% Full Growth Factor", func(b *testing.B) {
-		for b.Loop() {
-			op(60)
-		}
-	})
-	b.Run("55% Full Growth Factor", func(b *testing.B) {
-		for b.Loop() {
-			op(55)
-		}
-	})
-	b.Run("50% Full Growth Factor", func(b *testing.B) {
-		for b.Loop() {
-			op(50)
-		}
-	})
+	}
 }
 
-func BenchmarkAgainstMapInsertOnly(b *testing.B) {
-	customMapOp := func(size int) {
-		h := New[int32, int64]()
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < size; i++ {
-			h.Put(int32(randVals.Int31()), int64(randVals.Int31()))
-		}
-	}
-	builtinMapOp := func(size int) {
-		h := map[int32]int64{}
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < size; i++ {
-			h[int32(randVals.Int31())] = int64(randVals.Int31())
-		}
+func BenchmarkSlotProbe(b *testing.B) {
+	flags := [slotprobes.GroupSize]uint8{}
+	slotKeys := [slotprobes.GroupSize]uint8{}
+	flagsRow := [8]uint8{0, 1, 2, 0, 1, 2, 0, 0}
+	slotKeysRow := [8]uint8{3, 3, 3, 1, 1, 1, 0, 0}
+	for i := 0; i < slotprobes.GroupSize; i += 8 {
+		copy(flags[i:], flagsRow[:])
+		copy(slotKeys[i:], slotKeysRow[:])
 	}
 
-	_growFactor = 50
-	b.Run("1e2 elements", func(b *testing.B) {
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(1e2)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(1e2)
-			}
-		})
-	})
-	b.Run("1e3 elements", func(b *testing.B) {
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(1e3)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(1e3)
-			}
-		})
-	})
-	b.Run("1e4 elements", func(b *testing.B) {
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(1e4)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(1e4)
-			}
-		})
-	})
-	b.Run("1e6 elements", func(b *testing.B) {
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(1e6)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(1e6)
-			}
-		})
-	})
+	for b.Loop() {
+		_, _ = slotprobes.SlotProbe(3, flags, slotKeys)
+	}
 }
 
-func BenchmarkAgainstMapGetOnly(b *testing.B) {
-	buildCustomHashMap := func(size int) Map[int32, int64] {
-		customHashMap := New[int32, int64]()
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < size; i++ {
-			customHashMap.Put(int32(randVals.Int31()), int64(randVals.Int31()))
-		}
-		return customHashMap
+func BenchmarkBuiltinMap(b *testing.B) {
+	setupOps := setupOps[map[int32]int64]{
+		PutOp:    builtinMapEmptyInit,
+		GetOp:    builtinMapValInit,
+		RemoveOp: builtinMapValInit,
+		MixedOp:  builtinMapEmptyInit,
 	}
-	buildBuiltinMap := func(size int) map[int32]int64 {
-		h := map[int32]int64{}
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < size; i++ {
-			h[int32(randVals.Int31())] = int64(randVals.Int31())
-		}
-		return h
+	benchOps := benchOps[map[int32]int64]{
+		PutOp:    builtinMapPut,
+		GetOp:    builtinMapGet,
+		RemoveOp: builtinMapRemove,
+		MixedOp:  builtinMapMixedUsage,
 	}
-
-	customMapOp := func(m *Map[int32, int64]) {
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < m.Len(); i++ {
-			randVal := randVals.Int31()
-			val, ok := m.Get(int32(randVal))
-			_ = val
-			_ = ok
-		}
-	}
-	builtinMapOp := func(m map[int32]int64) {
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < len(m); i++ {
-			randVal := randVals.Int31()
-			val, ok := m[int32(randVal)]
-			_ = val
-			_ = ok
-		}
-	}
-
-	_growFactor = 50
-	b.Run("1e2 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e2)
-		builtinMap := buildBuiltinMap(1e2)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
-	b.Run("1e3 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e3)
-		builtinMap := buildBuiltinMap(1e3)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
-	b.Run("1e4 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e4)
-		builtinMap := buildBuiltinMap(1e4)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
-	b.Run("1e6 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e6)
-		builtinMap := buildBuiltinMap(1e6)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
+	b.Run("PowsOf10", benchmarkOps(setupOps, benchOps, powerOf10SizeSeq(1e8)))
+	// b.Run("PowsOf10", benchmarkMixedOps(setupOps, benchOps, powerOf10SizeSeq(1e5)))
+	b.Run("SmallSizes", benchmarkOps(setupOps, benchOps, smallMapsSizeSeq()))
 }
 
-func BenchmarkAgainstMapRemoveOnly(b *testing.B) {
-	buildCustomHashMap := func(size int) Map[int32, int64] {
-		customHashMap := New[int32, int64]()
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < size; i++ {
-			customHashMap.Put(int32(randVals.Int31()), int64(randVals.Int31()))
-		}
-		return customHashMap
+func BenchmarkCustomMap(b *testing.B) {
+	setupOps := setupOps[*Map[int32, int64]]{
+		PutOp:    customMapEmptyInit,
+		GetOp:    customMapValInit,
+		RemoveOp: customMapValInit,
+		MixedOp:  customMapEmptyInit,
 	}
-	buildBuiltinMap := func(size int) map[int32]int64 {
-		h := map[int32]int64{}
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < size; i++ {
-			h[int32(randVals.Int31())] = int64(randVals.Int31())
+	benchOps := benchOps[*Map[int32, int64]]{
+		PutOp:    customMapPut,
+		GetOp:    customMapGet,
+		RemoveOp: customMapRemove,
+		MixedOp:  customMapMixedUsage,
+	}
+	b.Run("PowsOf10", benchmarkDifferentGrowthFactors(
+		setupOps, benchOps,
+		slices.Values([]int{50, 55, 60, 65, 70, 75, 80, 85, 90}),
+		powerOf10SizeSeq(1e8),
+	))
+	b.Run("SmallSizes", benchmarkDifferentGrowthFactors(
+		setupOps, benchOps,
+		slices.Values([]int{50, 55, 60, 65, 70, 75, 80, 85, 90}),
+		smallMapsSizeSeq(),
+	))
+}
+
+func benchmarkDifferentGrowthFactors[T any](
+	setup setupOps[T],
+	ops benchOps[T],
+	growthFactors iter.Seq[int],
+	sizes iter.Seq[int],
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		subTests := func(growFactor int) func(b *testing.B) {
+			return func(b *testing.B) {
+				origGrowthFactor := _growFactor
+				_growFactor = growFactor
+				b.Cleanup(func() {
+					_growFactor = origGrowthFactor
+				})
+				b.Run("", benchmarkOps(setup, ops, sizes))
+				// b.Run("", benchmarkMixedOps(setup, ops, sizes))
+			}
 		}
-		return h
+
+		for i := range growthFactors {
+			b.Run(
+				fmt.Sprintf("%d%% GrowthFactor", i),
+				subTests(i),
+			)
+		}
+	}
+}
+
+func benchmarkOps[T any](
+	setup setupOps[T],
+	ops benchOps[T],
+	sizes iter.Seq[int],
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		b.Run("Put", benchmarkSizeRange(setup.PutOp, ops.PutOp, sizes))
+		b.Run("PutAndGet", benchmarkSizeRange(setup.GetOp, ops.GetOp, sizes))
+		b.Run("PutAndRemove", benchmarkSizeRange(setup.RemoveOp, ops.RemoveOp, sizes))
+	}
+}
+
+func benchmarkMixedOps[T any](
+	setup setupOps[T],
+	ops benchOps[T],
+	sizes iter.Seq[int],
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		b.Run("Mixed", benchmarkSizeRange(setup.MixedOp, ops.MixedOp, sizes))
+	}
+}
+
+func benchmarkSizeRange[T any](
+	setupOp func(size int) T,
+	benchOp func(input T, size int),
+	sizes iter.Seq[int],
+) func(b *testing.B) {
+	return func(b *testing.B) {
+		for i := range sizes {
+			b.Run(
+				fmt.Sprintf("%d Elements", i),
+				func(b *testing.B) {
+					for b.Loop() {
+						// Setup in the benchmark loop :O
+						// It has to be here otherwise the reported allocs/op
+						// will always be 1. For whatever reason the allocations
+						// are only tracked in the loop.
+						//
+						// Also, another  somewhat separate issue is that the
+						// benchmarks timer cannot be started and stopped. Doing
+						// so will cause the test to hang for short ops.
+						// https://stackoverflow.com/questions/37620251/golang-benchmarking-b-stoptimer-hangs-is-it-me
+						setupVal := setupOp(i)
+						benchOp(setupVal, i)
+					}
+				},
+			)
+		}
+	}
+}
+
+func customMapEmptyInit(size int) *Map[int32, int64] {
+	rv := New[int32, int64]()
+	return &rv
+}
+
+func builtinMapEmptyInit(size int) map[int32]int64 {
+	return map[int32]int64{}
+}
+
+func customMapValInit(size int) *Map[int32, int64] {
+	rv := New[int32, int64]()
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		rv.Put(int32(randVals.Int31()), int64(randVals.Int31()))
+	}
+	return &rv
+}
+
+func builtinMapValInit(size int) map[int32]int64 {
+	rv := map[int32]int64{}
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		rv[int32(randVals.Int31())] = int64(randVals.Int31())
+	}
+	return rv
+}
+
+func customMapPut(input *Map[int32, int64], size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		input.Put(int32(randVals.Int31()), int64(randVals.Int31()))
+	}
+}
+
+func builtinMapPut(input map[int32]int64, size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		input[int32(randVals.Int31())] = int64(randVals.Int31())
+	}
+}
+
+func customMapGet(input *Map[int32, int64], size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		val, ok := input.Get(int32(randVal))
+		_ = val
+		_ = ok
+	}
+}
+
+func builtinMapGet(input map[int32]int64, size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		val, ok := input[int32(randVal)]
+		_ = val
+		_ = ok
+	}
+}
+
+func customMapRemove(m *Map[int32, int64], size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		m.Remove(randVal)
+	}
+}
+
+func builtinMapRemove(input map[int32]int64, size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		delete(input, randVal)
+	}
+}
+
+func customMapMixedUsage(input *Map[int32, int64], size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		input.Put(int32(randVals.Int31()), int64(randVals.Int31()))
+	}
+	randVals = rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		val, ok := input.Get(int32(randVal))
+		_ = val
+		_ = ok
 	}
 
-	customMapOp := func(m *Map[int32, int64]) {
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < m.Len(); i++ {
-			randVal := randVals.Int31()
-			m.Remove(randVal)
+	randVals = rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		input.Remove(int32(randVal))
+		// The next value would have been the value so skip it
+		_ = randVals.Int31()
+
+		iterRandVals := rand.New(rand.NewSource(3))
+		for j := 0; j < size; j++ {
+			iterKey := iterRandVals.Int31()
+			_ = iterRandVals.Int31()
+
+			if j > i {
+				val, ok := input.Get(int32(iterKey))
+				_ = val
+				_ = ok
+			}
 		}
-		// fmt.Println("Max collision: ", m.maxChain)
 	}
-	builtinMapOp := func(m map[int32]int64) {
-		randVals := rand.New(rand.NewSource(3))
-		for i := 0; i < len(m); i++ {
-			randVal := randVals.Int31()
-			delete(m, randVal)
-		}
+}
+
+func builtinMapMixedUsage(input map[int32]int64, size int) {
+	randVals := rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		input[randVals.Int31()] = int64(randVals.Int31())
+	}
+	randVals = rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		val, ok := input[int32(randVal)]
+		_ = val
+		_ = ok
 	}
 
-	_growFactor = 50
-	b.Run("1e2 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e2)
-		builtinMap := buildBuiltinMap(1e2)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
+	randVals = rand.New(rand.NewSource(3))
+	for i := 0; i < size; i++ {
+		randVal := randVals.Int31()
+		delete(input, int32(randVal))
+		// The next value would have been the value so skip it
+		_ = randVals.Int31()
+
+		iterRandVals := rand.New(rand.NewSource(3))
+		for j := 0; j < size; j++ {
+			iterKey := iterRandVals.Int31()
+			_ = iterRandVals.Int31()
+
+			if j > i {
+				val, ok := input[int32(iterKey)]
+				_ = val
+				_ = ok
 			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
-	b.Run("1e3 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e3)
-		builtinMap := buildBuiltinMap(1e3)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
-	b.Run("1e4 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e4)
-		builtinMap := buildBuiltinMap(1e4)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
-	b.Run("1e6 elements", func(b *testing.B) {
-		customHashMap := buildCustomHashMap(1e6)
-		builtinMap := buildBuiltinMap(1e6)
-		b.Run("Custom Map", func(b *testing.B) {
-			for b.Loop() {
-				customMapOp(&customHashMap)
-			}
-		})
-		b.Run("Builtin Map", func(b *testing.B) {
-			for b.Loop() {
-				builtinMapOp(builtinMap)
-			}
-		})
-	})
+		}
+	}
 }
