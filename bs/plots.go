@@ -130,7 +130,7 @@ func makeAllocsPlot(ctxt context.Context) error {
 			builtinPoints, point{X: float64(v.numElements), Y: float64(v.allocPerOp)},
 		)
 	}
-	slices.SortFunc[[]point](builtinPoints, func(a, b point) int {
+	slices.SortFunc(builtinPoints, func(a, b point) int {
 		return int(a.X - b.X)
 	})
 	f.WriteString("# Builtin map data block\n")
@@ -158,7 +158,7 @@ func makeAllocsPlot(ctxt context.Context) error {
 				points, point{X: float64(v.numElements), Y: float64(v.allocPerOp)},
 			)
 		}
-		slices.SortFunc[[]point](points, func(a, b point) int {
+		slices.SortFunc(points, func(a, b point) int {
 			return int(a.X - b.X)
 		})
 
@@ -188,7 +188,7 @@ func makeNsPerOpLinePlot(ctxt context.Context) error {
 			)
 		}
 	}
-	slices.SortFunc[[]point](builtinPoints, func(a, b point) int {
+	slices.SortFunc(builtinPoints, func(a, b point) int {
 		return int(a.X - b.X)
 	})
 	f.WriteString("# Builtin map data block\n")
@@ -215,7 +215,7 @@ func makeNsPerOpLinePlot(ctxt context.Context) error {
 				points, point{X: float64(v.numElements), Y: v.nsPerOp},
 			)
 		}
-		slices.SortFunc[[]point](points, func(a, b point) int {
+		slices.SortFunc(points, func(a, b point) int {
 			return int(a.X - b.X)
 		})
 
@@ -245,7 +245,7 @@ func makeNsPerOpLinePlotAllTags(ctxt context.Context) error {
 			)
 		}
 	}
-	slices.SortFunc[[]point](builtinPoints, func(a, b point) int {
+	slices.SortFunc(builtinPoints, func(a, b point) int {
 		return int(a.X - b.X)
 	})
 	f.WriteString("# Builtin map data block\n")
@@ -279,10 +279,10 @@ func makeNsPerOpLinePlotAllTags(ctxt context.Context) error {
 					)
 				}
 			}
-			slices.SortFunc[[]point](points, func(a, b point) int {
+			slices.SortFunc(points, func(a, b point) int {
 				return int(a.X - b.X)
 			})
-			for i, _ := range points {
+			for i := range points {
 				// points[i].Y -= builtinPoints[i].Y / scalingFactors[int64(points[i].X)]
 				// points[i].Y /= scalingFactors[int64(points[i].X)]
 				points[i].Y /= builtinPoints[i].Y
