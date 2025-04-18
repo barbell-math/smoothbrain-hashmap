@@ -450,16 +450,26 @@ of the map defined in this package shows a slight performance increase over the
 builtin map. Up until now only the simd128 version of the map defined in this
 package has been shown in graphs. This was done to reduce clutter and because
 the simd128 version of the map actually performs the best, as shown in plot 3.
+The reason there is a jagged section is because data points within that region
+were collected every few hundred elements. After that region sampling dropped to
+follow powers of 10 to help reduce the time taken to gather the benchmark
+results.
 
 ![plot3](./img/numElementsVsNsPerOpAllTags.png)
 <sup>Plot 3: A plot showing the time taken to add N elements normalized
 against the time taken to add N elements to the builtin map across various
 simd tags.</sup>
 
-Plot 3 shows that simd128 performs the best, with simd256 having a slight edge
-to put it in second place and the default implementation with no SIMD is about
-as good as the simd512 version. This is due to the nature of how a swiss table
-works. The larger the SIMD register the larger the number of collisions at each
-stage of comparison. Yes, SIMD will allow more values to be compared at once
-but having more values also results in more collisions. These collisions have to
-be iterated over sequentially which results in slower performance.
+Plot 3 shows that
+1. simd128 performs the best.
+1. simd256 has a slight edge, especially towards the end of the graph, to put it
+in second place.
+1. the default implementation with no SIMD is about as good as the simd512
+version, if not better.
+
+The pattern of worse performance as the SIMD register size increases is due to
+the nature of how a swiss table works. The larger the SIMD register the larger
+the potential number of collisions at each stage of comparison. Yes, SIMD will
+allow more values to be compared at once but having more values also results in
+more collisions. These collisions have to be iterated over sequentially which
+results in slower performance.

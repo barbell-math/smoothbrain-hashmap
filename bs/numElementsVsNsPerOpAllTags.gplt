@@ -1,5 +1,6 @@
 set logscale x 10
 set logscale y 10
+set yrange [0.6:3]
 set datafile separator whitespace
 set key vertical maxrows 9 left top textcolor 'white'
 set title "Time Taken to Place N Elements in the Map Relative to the Time Taken To Place N Elements in the Builtin Map\n{/*0.7 Number of Elements Vs Average Nanosecends/Operation Normalized Against the Builtin Map (Lower is Better)}" tc rgb 'white'
@@ -8,47 +9,47 @@ set ylabel "Average Nanosecends/Operation Normalized Relative to the Builtin Map
 
 set style line 1 lt 1 lc rgb 'purple' pointtype -1
 
-set style line 2 lt 1 lc rgb '#FFF5F0' pointtype -1 # very light red
-set style line 3 lt 1 lc rgb '#FEE0D2' pointtype -1 # 
-set style line 4 lt 1 lc rgb '#FCBBA1' pointtype -1 # 
-set style line 5 lt 1 lc rgb '#FC9272' pointtype -1 # light red
-set style line 6 lt 1 lc rgb '#FB6A4A' pointtype -1 # 
-set style line 7 lt 1 lc rgb '#EF3B2C' pointtype -1 # medium red
-set style line 8 lt 1 lc rgb '#CB181D' pointtype -1 #
-set style line 9 lt 1 lc rgb '#99000D' pointtype -1 # dark red
-set style line 10 lt 1 lc rgb '#ff000D' pointtype -1 # dark red
+set style line 2 lt 1 lc rgb '#770000FF' pointtype -1 # very light red
+set style line 3 lt 1 lc rgb '#880000FF' pointtype -1 # 
+set style line 4 lt 1 lc rgb '#990000FF' pointtype -1 # 
+set style line 5 lt 1 lc rgb '#AA0000FF' pointtype -1 # light red
+set style line 6 lt 1 lc rgb '#BB0000FF' pointtype -1 # 
+set style line 7 lt 1 lc rgb '#CC0000FF' pointtype -1 # medium red
+set style line 8 lt 1 lc rgb '#DD0000FF' pointtype -1 #
+set style line 9 lt 1 lc rgb '#EE0000FF' pointtype -1 # dark red
+set style line 10 lt 1 lc rgb '#FF0000FF' pointtype -1 # dark red
 
-set style line 11 lt 1 lc rgb '#F7FCF5' pointtype -1 # very light green
-set style line 12 lt 1 lc rgb '#E5F5E0' pointtype -1 # 
-set style line 13 lt 1 lc rgb '#C7E9C0' pointtype -1 # 
-set style line 14 lt 1 lc rgb '#A1D99B' pointtype -1 # light green
-set style line 15 lt 1 lc rgb '#74C476' pointtype -1 # 
-set style line 16 lt 1 lc rgb '#41AB5D' pointtype -1 # medium green
-set style line 17 lt 1 lc rgb '#238B45' pointtype -1 #
-set style line 18 lt 1 lc rgb '#005A32' pointtype -1 # dark green
-set style line 19 lt 1 lc rgb '#006A62' pointtype -1 # dark green
+set style line 11 lt 1 lc rgb '#7700FF00' pointtype -1 # very light red
+set style line 12 lt 1 lc rgb '#8800FF00' pointtype -1 # 
+set style line 13 lt 1 lc rgb '#9900FF00' pointtype -1 # 
+set style line 14 lt 1 lc rgb '#AA00FF00' pointtype -1 # light red
+set style line 15 lt 1 lc rgb '#BB00FF00' pointtype -1 # 
+set style line 16 lt 1 lc rgb '#CC00FF00' pointtype -1 # medium red
+set style line 17 lt 1 lc rgb '#DD00FF00' pointtype -1 #
+set style line 18 lt 1 lc rgb '#EE00FF00' pointtype -1 # dark red
+set style line 19 lt 1 lc rgb '#FF00FF00' pointtype -1 # dark red
 
-set style line 20 lt 1 lc rgb '#F7FBFF' pointtype -1 # very light blue
-set style line 21 lt 1 lc rgb '#DEEBF7' pointtype -1 # 
-set style line 22 lt 1 lc rgb '#C6DBEF' pointtype -1 # 
-set style line 23 lt 1 lc rgb '#9ECAE1' pointtype -1 # light blue
-set style line 24 lt 1 lc rgb '#6BAED6' pointtype -1 # 
-set style line 25 lt 1 lc rgb '#4292C6' pointtype -1 # medium blue
-set style line 26 lt 1 lc rgb '#2171B5' pointtype -1 #
-set style line 27 lt 1 lc rgb '#084594' pointtype -1 # dark blue
-set style line 28 lt 1 lc rgb '#084594' pointtype -1 # dark blue
+set style line 20 lt 1 lc rgb '#77FF0000' pointtype -1 # very light red
+set style line 21 lt 1 lc rgb '#88FF0000' pointtype -1 # 
+set style line 22 lt 1 lc rgb '#99FF0000' pointtype -1 # 
+set style line 23 lt 1 lc rgb '#AAFF0000' pointtype -1 # light red
+set style line 24 lt 1 lc rgb '#BBFF0000' pointtype -1 # 
+set style line 25 lt 1 lc rgb '#CCFF0000' pointtype -1 # medium red
+set style line 26 lt 1 lc rgb '#DDFF0000' pointtype -1 #
+set style line 27 lt 1 lc rgb '#EEFF0000' pointtype -1 # dark red
+set style line 28 lt 1 lc rgb '#FFFF0000' pointtype -1 # dark red
 
-set style line 29 lt 1 lc rgb '#FCFBFD' pointtype -1 # very light purple
-set style line 30 lt 1 lc rgb '#EFEDF5' pointtype -1 # 
-set style line 31 lt 1 lc rgb '#DADAEB' pointtype -1 # 
-set style line 32 lt 1 lc rgb '#BCBDDC' pointtype -1 # light purple
-set style line 33 lt 1 lc rgb '#9E9AC8' pointtype -1 # 
-set style line 34 lt 1 lc rgb '#807DBA' pointtype -1 # medium purple
-set style line 35 lt 1 lc rgb '#6A51A3' pointtype -1 #
-set style line 36 lt 1 lc rgb '#4A1486' pointtype -1 # dark purple
-set style line 37 lt 1 lc rgb '#4A1486' pointtype -1 # dark purple
+set style line 29 lt 1 lc rgb '#77FFFF00' pointtype -1 # very light red
+set style line 30 lt 1 lc rgb '#88FFFF00' pointtype -1 # 
+set style line 31 lt 1 lc rgb '#99FFFF00' pointtype -1 # 
+set style line 32 lt 1 lc rgb '#AAFFFF00' pointtype -1 # light red
+set style line 33 lt 1 lc rgb '#BBFFFF00' pointtype -1 # 
+set style line 34 lt 1 lc rgb '#CCFFFF00' pointtype -1 # medium red
+set style line 35 lt 1 lc rgb '#DDFFFF00' pointtype -1 #
+set style line 36 lt 1 lc rgb '#EEFFFF00' pointtype -1 # dark red
+set style line 37 lt 1 lc rgb '#FFFFFF00' pointtype -1 # dark red
 
-set terminal png size 1920,1080 background rgb 'black'
+set terminal png truecolor size 1920,1080 background rgb 'black'
 set border lc rgb 'white'
 set output './img/numElementsVsNsPerOpAllTags.png'
 plot './bs/tmp/numElementsVsNsPerOpAllTags.dat' \
