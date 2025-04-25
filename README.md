@@ -301,14 +301,14 @@ There are a couple scenarios where this map will make sense to use:
 To build the build system:
 
 ```
-go build -o ./bs/bin/bs ./bs
+go build -o ./bs/bs ./bs
 ```
 
 The build system can then be used as usual:
 
 ```
-./bs/bin/bs --help
-./bs/bin/bs buildBs # Builds the build system!
+./bs/bs --help
+./bs/bs buildBs # Builds the build system!
 ```
 
 To run unit tests:
