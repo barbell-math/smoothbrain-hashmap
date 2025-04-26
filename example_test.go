@@ -29,11 +29,11 @@ func Example_simple() {
 	fmt.Println(keys)
 
 	// Output:
-	//one
-	//4 was not in the map!
-	//2
-	//Keys:
-	//[2 3]
+	// one
+	// 4 was not in the map!
+	// 2
+	// Keys:
+	// [2 3]
 }
 
 func Example_customEqAndHashFuncs() {
@@ -62,8 +62,8 @@ func Example_customEqAndHashFuncs() {
 	fmt.Println(keys)
 
 	// Output:
-	//four
-	//2
-	//Keys:
-	//[one three]
+	// four
+	// 2
+	// Keys:
+	// [one three]
 }
