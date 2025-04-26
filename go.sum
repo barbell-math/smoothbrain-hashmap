@@ -2,7 +2,7 @@ github.com/barbell-math/smoothbrain-bs v0.0.0-20250425053017-a3279ded0f24 h1:EXl
 github.com/barbell-math/smoothbrain-bs v0.0.0-20250425053017-a3279ded0f24/go.mod h1:FQWW2l1VFXaivWjczddZ565lW7JijYX9ox/lyA0rEBg=
 github.com/barbell-math/smoothbrain-errs v0.0.0-20250425053108-4f68fa9ea8f4 h1:iOZaBxrd7mcAIlYFToMKks4Zpz53G8myP2MYGj80lZo=
 github.com/barbell-math/smoothbrain-errs v0.0.0-20250425053108-4f68fa9ea8f4/go.mod h1:xAQh5elTwqnV61FPUSPRf+7a1AOtem0vEbt3CAqnLpQ=
-github.com/barbell-math/smoothbrain-test v0.0.0-20250425053258-be7b83b6fb8a h1:3slQ06f1DWCngZXkPNJWsWx9D508awrmtAdF2aejPo0=
-github.com/barbell-math/smoothbrain-test v0.0.0-20250425053258-be7b83b6fb8a/go.mod h1:kav5jFv/ROflLA3qbsbvlqfirRZxqg9nTTQXcrLrUlE=
+github.com/barbell-math/smoothbrain-test v0.0.0-20250425205645-1b8de56049d2 h1:JY/yQt60Io+wmIB/o+hicyZ/tI/d9kyQDp6U2lJW8w0=
+github.com/barbell-math/smoothbrain-test v0.0.0-20250425205645-1b8de56049d2/go.mod h1:kav5jFv/ROflLA3qbsbvlqfirRZxqg9nTTQXcrLrUlE=
 golang.org/x/tools v0.32.0 h1:Q7N1vhpkQv7ybVzLFtTjvQya2ewbwNDZzUgfXGqtMWU=
 golang.org/x/tools v0.32.0/go.mod h1:ZxrU41P/wAbZD8EDa6dDCa6XfpkhJ7HFMjHJXfBDu8s=
