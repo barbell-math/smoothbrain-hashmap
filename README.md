@@ -40,7 +40,7 @@ keys := slices.Collect(h.Keys())
 slices.Sort(keys)
 fmt.Println(keys)
 
-// Output:
+//Output:
 // four
 // 2
 // Keys:
@@ -85,7 +85,7 @@ keys := slices.Collect(h.Keys())
 slices.Sort(keys)
 fmt.Println(keys)
 
-// Output:
+//Output:
 // one
 // 4 was not in the map!
 // 2
