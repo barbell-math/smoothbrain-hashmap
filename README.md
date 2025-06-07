@@ -333,16 +333,16 @@ To run `gdb` on a selected packages tests:
 
 ```
 go test -gcflags "-N" -ldflags="-compressdwarf=false" -c ./...                      # or...
-./bs/bin/bs unitTestExe default
+./bs/bs unitTestExe default
 
 go test -tags=sbmap_simd128 -gcflags "-N" -ldflags="-compressdwarf=false" -c ./...  # or...
-./bs/bin/bs unitTestExe 128
+./bs/bs unitTestExe 128
 
 go test -tags=sbmap_simd256 -gcflags "-N" -ldflags="-compressdwarf=false" -c ./...  # or...
-./bs/bin/bs unitTestExe 256
+./bs/bs unitTestExe 256
 
 go test -tags=sbmap_simd512 -gcflags "-N" -ldflags="-compressdwarf=false" -c ./...  # or...
-./bs/bin/bs unitTestExe 512
+./bs/bs unitTestExe 512
 
 gdb slotProbes.test             # or...
 gdb smoothbrain-hashmap.test

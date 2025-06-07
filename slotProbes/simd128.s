@@ -8,7 +8,7 @@
 #define Used $1
 #define Deleted $2
 
-// func getSlotProbe(
+// func SlotProbe(
 // 		key uint8,
 // 		flags [16]uint8,
 // 		slotKeys [16]uint8,
